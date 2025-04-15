@@ -19,8 +19,8 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{- $committeeID := .ID }}
 <fieldset>
   <legend>Committee <strong>{{ .Name }}</strong></legend>
+  <a href="/meetings_overview?SESSIONID={{ $sessionID }}&committee={{ $committeeID }}">Meetings overview</a><br>
   <a href="/meeting_create?SESSIONID={{ $sessionID }}&committee={{ $committeeID }}">Create meeting</a>
-  <a href="/member_status?SESSIONID={{ $sessionID }}&committee={{ $committeeID }}">Member history</a>
   {{ $filter := CommitteeIDFilter .ID }}
   {{ if $meetings.Contains $filter }}
   <form action="/meetings_store" method="post" accept-charset="UTF-8">

@@ -1,0 +1,90 @@
+{{- /*
+This file is Free Software under the Apache-2.0 License
+without warranty, see README.md and LICENSE for details.
+
+SPDX-License-Identifier: Apache-2.0
+
+SPDX-FileCopyrightText: 2025 German Federal Office for Information Security (BSI) <https://www.bsi.bund.de>
+Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
+*/ -}}
+{{ template "header" . }}
+{{- $sessionID   := .Session.ID }}
+{{- $committeeID := .Committee.ID }}
+<fieldset>
+<legend>Meetings: <strong>{{ .Committee.Name }}</strong></legend>
+{{- $data := .Overview.Data }}
+{{ if $data }}
+{{- $histories := .Overview.UsersHistories  }}
+{{- $users     := .Overview.Users           }}
+{{- $voting    := MemberStatus  "voting"    }}
+{{- $waiting   := MeetingStatus "onhold"    }}
+{{- $running   := MeetingStatus "running"   }}
+{{- $concluded := MeetingStatus "concluded" }}
+  <table>
+    <thead>
+    </thead>
+<tr>
+<th>Members</th>
+{{- range $d := $data }}
+{{- $m := $d.Meeting }}
+<th>
+  <a href="/meeting_status?SESSIONID={{ $sessionID}}&committee={{ $committeeID }}&meeting={{ $m.ID }}"><time datetime="{{ $m.StartTime.UTC.Format "2006-01-02T15:04:05Z07:00" }}">{{ $m.StartTime.UTC.Format "2006-01-02 15:04 MST" }}</time></a>
+  <br>{{ if $m.Gathering }}Gathering{{ else }}Voting{{ end }}
+  {{ if $m.Description }}<br>{{ $.Description | Shorten }}{{ end }}
+  <br>
+  {{-      if eq $m.Status $waiting -}}Waiting
+  {{- else if eq $m.Status $running -}}Running
+  {{- else }}Concluded
+  {{- end -}}
+</th>
+{{- end }}
+</tr>
+    </thead>
+    <tbody>
+{{- range $user := $users }}
+{{- $nickname := $user.Nickname }}
+<tr>
+  <td>
+    {{- if $user.Firstname }}{{ $user.Firstname }}{{ end }}
+    {{  if $user.Lastname  }}{{ $user.Lastname  }}{{ end }}
+    {{- if or $user.Firstname $user.Lastname }}<br>{{ end }}
+    (<strong>{{ $nickname }}</strong>)
+  </td>
+{{- range $d := $data }}
+{{- $m         := $d.Meeting   }}
+{{- $attendees := $d.Attendees }}
+{{- $history   := index $histories $nickname }}
+<td>
+{{ if $attendees.Attended $nickname }}&check;{{
+   else if and (eq $m.Status $concluded)
+               (eq ($history.Status $m.StopTime) $voting) }}&#x1F6C7;
+{{ else if and (eq $m.Status $running)
+               (eq ($history.Status $m.StopTime) $voting) }}&#x26A0;
+{{- end }}
+</td>
+{{- end }}
+</tr>
+{{ end }}
+<tr>
+  <td><strong>Quora:</strong></td>
+{{- range $d := $data }}
+{{- $m := $d.Meeting }}
+{{- $q := $d.Quorum }}
+  <td>
+{{- if $q }}
+{{-   if ne $m.Status $waiting }}
+{{-     if $q.Reached }}&check;
+{{-     else if eq $m.Status $running -}}&#x26A0;
+{{-     else }}&#x1F6C7;
+{{-     end }}
+{{-   end }}
+({{ $q.AttendingVoting }}: {{ $q.Number }})
+{{- end -}}
+  </td>
+{{- end }}
+</tr>
+    </tbody>
+  </table>
+</fieldset>
+{{- end }}
+{{ template "footer" }}

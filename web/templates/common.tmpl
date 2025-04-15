@@ -176,13 +176,21 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
        value="{{ if not .StartTime.IsZero }}{{ .StartTime.UTC.Format "2006-01-02T15:04" }}{{ end }}"
        {{ if $concluded }}disabled{{ end }}
        required><br>
-<label for="Duration">Duration:</label>
+<label for="duration">Duration:</label>
 <input type="input"
        name="duration"
        id="duration"
        value="{{ if .Duration }}{{ HoursMinutes .Duration }}{{ end }}"
        {{ if $concluded }}disabled{{ end }}
        required><br>
+<label for="checkbox">Gathering:</label>
+<input type="checkbox"
+       name="gathering"
+       id="gathering"
+       value="gathering"
+       {{ if .Gathering }}checked{{ end }}
+       {{ if $concluded }}disabled{{ end }}>
+<br>
 <label for="description">Description:</label>
 <textarea name="description"
        {{ if $concluded }}disabled{{ end }}>{{ if .Description }}{{ .Description }}{{ end }}</textarea>

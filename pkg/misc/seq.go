@@ -40,6 +40,21 @@ func Filter[S any](seq iter.Seq[S], cond func(S) bool) iter.Seq[S] {
 	}
 }
 
+// ParseSeq parses the elements of a given sequence with
+// a given parse function and returns a sequence of the parsing
+// results that do not fail to parse.
+func ParseSeq[S, T any](seq iter.Seq[S], parse func(S) (T, error)) iter.Seq[T] {
+	return func(yield func(T) bool) {
+		for s := range seq {
+			if t, err := parse(s); err == nil {
+				if !yield(t) {
+					return
+				}
+			}
+		}
+	}
+}
+
 // Attribute returns a sequence attributing the given one with a given attribute.
 func Attribute[S, A any](seq iter.Seq[S], a A) iter.Seq2[S, A] {
 	return func(yield func(S, A) bool) {

@@ -51,7 +51,8 @@ CREATE TABLE member_status (
 INSERT INTO member_status (id, name, description) VALUES
     (0, 'member', 'Regular committee member'),
     (1, 'voting', 'Voting member'),
-    (2, 'nonevoting', 'Persistent none voting member');
+    (2, 'nonevoting', 'Persistent none voting member'),
+    (3, 'nomember', 'Not a member');
 
 CREATE TABLE member_history (
     nickname      VARCHAR   NOT NULL,
@@ -82,6 +83,7 @@ INSERT INTO meeting_status (id, name, description) VALUES
 CREATE TABLE meetings (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,
     committees_id INTEGER   NOT NULL REFERENCES committees(id) ON DELETE CASCADE,
+    gathering     BOOLEAN   NOT NULL DEFAULT FALSE,
     status        INTEGER   NOT NULL DEFAULT 0 REFERENCES meeting_status(id) ON DELETE CASCADE, -- on hold
     start_time    TIMESTAMP NOT NULL,
     stop_time     TIMESTAMP NOT NULL,

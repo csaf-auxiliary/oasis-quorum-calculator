@@ -15,11 +15,11 @@ import (
 	"log/slog"
 	"net/http"
 	"slices"
-	"strconv"
 	"time"
 
 	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/config"
 	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/database"
+	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/misc"
 	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/models"
 )
 
@@ -90,7 +90,7 @@ func (mw *Middleware) Roles(next http.HandlerFunc, roles ...models.Role) http.Ha
 func (mw *Middleware) CommitteeRoles(next http.HandlerFunc, roles ...models.Role) http.HandlerFunc {
 	return mw.User(func(w http.ResponseWriter, r *http.Request) {
 		committee := r.FormValue("committee")
-		cid, err := strconv.ParseInt(committee, 10, 64)
+		cid, err := misc.Atoi64(committee)
 		if err != nil {
 			http.Error(w, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
 			return

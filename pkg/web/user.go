@@ -13,7 +13,7 @@ import (
 	"maps"
 	"net/http"
 	"regexp"
-	"strconv"
+	"slices"
 	"strings"
 	"unicode/utf8"
 
@@ -55,8 +55,8 @@ func (c *Controller) userStore(w http.ResponseWriter, r *http.Request) {
 		ctx             = r.Context()
 		user            = auth.UserFromContext(ctx)
 	)
-	nilChanger(&changed, &user.Firstname, firstname)
-	nilChanger(&changed, &user.Lastname, lastname)
+	misc.NilChanger(&changed, &user.Firstname, firstname)
+	misc.NilChanger(&changed, &user.Lastname, lastname)
 
 	data := templateData{
 		"Session": auth.SessionFromContext(ctx),
@@ -68,7 +68,7 @@ func (c *Controller) userStore(w http.ResponseWriter, r *http.Request) {
 	case password != "" && utf8.RuneCountInString(password) < 8:
 		data.error("Password too short (need at least 8 characters)")
 	case password != "":
-		nilChanger(&changed, &user.Password, password)
+		misc.NilChanger(&changed, &user.Password, password)
 	}
 	if changed && !check(w, r, user.Store(ctx, c.db)) {
 		return
@@ -77,15 +77,11 @@ func (c *Controller) userStore(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *Controller) usersStore(w http.ResponseWriter, r *http.Request) {
-	me := auth.SessionFromContext(r.Context()).Nickname()
 	if r.FormValue("delete") != "" {
-		filter := func(yield func(string) bool) {
-			for _, nickname := range r.Form["users"] {
-				if nickname != "admin" && nickname != me && !yield(nickname) {
-					return
-				}
-			}
-		}
+		me := auth.SessionFromContext(r.Context()).Nickname()
+		filter := misc.Filter(slices.Values(r.Form["users"]), func(nickname string) bool {
+			return nickname != "admin" && nickname != me
+		})
 		if !check(w, r, models.DeleteUsersByNickname(r.Context(), c.db, filter)) {
 			return
 		}
@@ -106,8 +102,8 @@ func (c *Controller) userCreate(w http.ResponseWriter, r *http.Request) {
 func (c *Controller) userCreateStore(w http.ResponseWriter, r *http.Request) {
 	nuser := models.User{
 		Nickname:  strings.TrimSpace(r.FormValue("nickname")),
-		Firstname: nilString(strings.TrimSpace(r.FormValue("firstname"))),
-		Lastname:  nilString(strings.TrimSpace(r.FormValue("lastname"))),
+		Firstname: misc.NilString(strings.TrimSpace(r.FormValue("firstname"))),
+		Lastname:  misc.NilString(strings.TrimSpace(r.FormValue("lastname"))),
 		IsAdmin:   r.FormValue("admin") == "admin",
 	}
 	ctx := r.Context()
@@ -182,8 +178,8 @@ func (c *Controller) userEditStore(w http.ResponseWriter, r *http.Request) {
 		changed         = false
 	)
 
-	nilChanger(&changed, &user.Firstname, firstname)
-	nilChanger(&changed, &user.Lastname, lastname)
+	misc.NilChanger(&changed, &user.Firstname, firstname)
+	misc.NilChanger(&changed, &user.Lastname, lastname)
 
 	committees, err := models.LoadCommittees(ctx, c.db)
 	if !check(w, r, err) {
@@ -202,7 +198,7 @@ func (c *Controller) userEditStore(w http.ResponseWriter, r *http.Request) {
 	case password != "" && utf8.RuneCountInString(password) < 8:
 		data.error("Password too short (need at least 8 characters)")
 	case password != "":
-		nilChanger(&changed, &user.Password, password)
+		misc.NilChanger(&changed, &user.Password, password)
 	}
 	if changed && !check(w, r, user.Store(ctx, c.db)) {
 		return
@@ -222,7 +218,7 @@ func (c *Controller) userCommitteesStore(w http.ResponseWriter, r *http.Request)
 		}
 		var (
 			role, err2 = models.ParseRole(m[1])
-			id, err1   = strconv.ParseInt(m[2], 10, 64)
+			id, err1   = misc.Atoi64(m[2])
 		)
 		if err1 != nil || err2 != nil {
 			// Should not happen.

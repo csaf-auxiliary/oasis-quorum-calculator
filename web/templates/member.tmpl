@@ -79,13 +79,13 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
   {{ range $meetings.Filter $filter }}
     <tr>
       <td>
-        {{ $att := index $attended .ID }}
+        {{- $att := index $attended .ID }}
         <a href="/meeting_status?SESSIONID={{ $sessionID }}&meeting={{ .ID }}&committee={{ $committeeID }}">
           {{- if      eq .Status $meetingOnHold }}Waiting{{ if $att }} (Attending){{ end }}
           {{- else if eq .Status $meetingRunning }}<strong>Running</strong>
           {{- else }}Concluded{{ if $att }} (Attended){{ end }}{{ end -}}
         </a>
-        {{- if      eq .Status $meetingRunning }}
+        {{- if eq .Status $meetingRunning }}
           {{ if $att }}<a href="/member_attend?SESSIONID={{ $sessionID }}&meeting={{ .ID }}&committee={{ $committeeID }}&attend=false"><mark>Click&nbsp;to&nbsp;skip!</mark></a>
           {{- else }}<a href="/member_attend?SESSIONID={{ $sessionID }}&meeting={{ .ID }}&committee={{ $committeeID }}&attend=true"><mark>Click&nbsp;to&nbsp;join!</mark></a>{{ end -}}
         {{- end }}

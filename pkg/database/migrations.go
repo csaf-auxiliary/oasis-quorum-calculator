@@ -20,7 +20,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"slices"
-	"strconv"
 	"strings"
 	"text/template"
 
@@ -183,7 +182,7 @@ func listMigrations() ([]migration, error) {
 		if m == nil {
 			continue
 		}
-		version, err := strconv.ParseInt(m[1], 10, 64)
+		version, err := misc.Atoi64(m[1])
 		if err != nil {
 			return nil, err
 		}

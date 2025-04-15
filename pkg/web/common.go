@@ -17,7 +17,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"unicode/utf8"
+
+	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/misc"
 )
 
 // datetimeHoursMinutes rounds the duration to minutes
@@ -46,72 +47,6 @@ func hoursMinutes(d time.Duration) string {
 	return b.String()
 }
 
-// shorten shortens a string to max. 40 characters.
-func shorten(v any) string {
-	var s string
-	switch x := v.(type) {
-	case *string:
-		if x == nil {
-			return ""
-		}
-		s = *x
-	case string:
-		s = x
-	default:
-		return ""
-	}
-	s = strings.TrimSpace(s)
-	if utf8.RuneCountInString(s) > 40 {
-		runes := []rune(s)
-		return string(runes[:37]) + "..."
-	}
-	return s
-}
-
-// int64sFromStrings converts a list of strings to int64s ignoring the bad.
-func int64sFromStrings(s []string) []int64 {
-	ints := make([]int64, 0, len(s))
-	for _, v := range s {
-		if id, err := strconv.ParseInt(v, 10, 64); err == nil {
-			ints = append(ints, id)
-		}
-	}
-	return ints
-}
-
-// nilString returns nil if the given string is empty else a pointer to
-// the string is returned.
-func nilString(s string) *string {
-	if s != "" {
-		return &s
-	}
-	return nil
-}
-
-// emptyString returns an empty string if the pointer is nil
-// the dereferenced string otherwise.
-func emptyString(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
-}
-
-// nilChanger updates a potential nil string.
-func nilChanger(changed *bool, s **string, v string) {
-	switch {
-	case v == "" && *s == nil:
-		return
-	case v != "" && *s != nil && v == **s:
-		return
-	case v == "" && *s != nil:
-		*s = nil
-	default:
-		*s = &v
-	}
-	*changed = true
-}
-
 // args is used in templates to construct maps of key/value pairs.
 func args(args ...any) (any, error) {
 	n := len(args)
@@ -136,10 +71,10 @@ func parseDuration(d string) (time.Duration, error) {
 	}
 	var h, m int64
 	if match[1] != "" {
-		h, _ = strconv.ParseInt(match[1], 10, 64)
+		h, _ = misc.Atoi64(match[1])
 	}
 	if match[2] != "" {
-		m, _ = strconv.ParseInt(match[2], 10, 64)
+		m, _ = misc.Atoi64(match[2])
 	}
 	return time.Duration(h)*time.Hour + time.Duration(m)*time.Minute, nil
 }

@@ -41,8 +41,8 @@ func (c *Controller) member(w http.ResponseWriter, r *http.Request) {
 
 func (c *Controller) memberAttend(w http.ResponseWriter, r *http.Request) {
 	var (
-		meetingID, err1   = strconv.ParseInt(r.FormValue("meeting"), 10, 64)
-		committeeID, err2 = strconv.ParseInt(r.FormValue("committee"), 10, 64)
+		meetingID, err1   = misc.Atoi64(r.FormValue("meeting"))
+		committeeID, err2 = misc.Atoi64(r.FormValue("committee"))
 		attend, err3      = strconv.ParseBool(r.FormValue("attend"))
 		ctx               = r.Context()
 	)
