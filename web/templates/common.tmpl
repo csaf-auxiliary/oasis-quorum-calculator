@@ -175,7 +175,9 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
        id="start_time"
        value="{{ if not .StartTime.IsZero }}{{ .StartTime.UTC.Format "2006-01-02T15:04" }}{{ end }}"
        {{ if $concluded }}disabled{{ end }}
-       required><br>
+       required>
+<button type="button" id="show_time_button" onclick="showLocalTime(this)">Show Local Time</button>
+<span id="local_time_display"></span> <br>
 <label for="duration">Duration:</label>
 <input type="input"
        name="duration"
@@ -194,4 +196,21 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 <label for="description">Description:</label>
 <textarea name="description"
        {{ if $concluded }}disabled{{ end }}>{{ if .Description }}{{ .Description }}{{ end }}</textarea>
+<script>
+// showLocalTime shows the local time of the current input when pressed
+// pressing it again will update the timestamp (if changed)
+function showLocalTime(button) {
+    let input = document.getElementById('start_time');
+    let utcString = input.value;
+    let display = document.getElementById('local_time_display');
+    if (utcString) {
+        let date = new Date(utcString + 'Z');
+          let localTimeString = date.toLocaleString();
+          display.textContent = localTimeString;
+    } else {
+        display.textContent = "No valid time set";
+    }
+    button.innerText = "Update Local Time";
+}
+</script>
 {{- end -}}
