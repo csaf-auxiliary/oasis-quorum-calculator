@@ -169,13 +169,33 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 
 {{- define "meeting" -}}
 {{ $concluded := eq .Status (MeetingStatus "concluded") }}
-<label for="start_time">Start time:</label>
-<input type="datetime-local"
-       name="start_time"
-       id="start_time"
-       value="{{ if not .StartTime.IsZero }}{{ .StartTime.UTC.Format "2006-01-02T15:04" }}{{ end }}"
-       {{ if $concluded }}disabled{{ end }}
-       required><br>
+
+<label id="start_time_label" for="start_time_input">
+  Start time (Local):
+</label>
+<input
+  type="datetime-local"
+  id="start_time_input"
+  {{ if not .StartTime.IsZero }}
+    value="{{ .StartTime.Local.Format "2006-01-02T15:04" }}"
+  {{ end }}
+  {{ if $concluded }}disabled{{ end }}
+  required>
+
+<!-- this hidden field is what actually gets submitted -->
+<input
+  type="hidden"
+  name="start_time"
+  id="start_time_hidden">
+
+<button
+  type="button"
+  id="toggle_mode_btn"
+  {{ if $concluded }}disabled{{ end }}>
+  Switch to UTC
+</button>
+<br><br>
+
 <label for="duration">Duration:</label>
 <input type="input"
        name="duration"
@@ -184,6 +204,7 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
        {{ if $concluded }}disabled{{ end }}
        required><br>
 <label for="checkbox">Gathering:</label>
+
 <input type="checkbox"
        name="gathering"
        id="gathering"
@@ -194,4 +215,85 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 <label for="description">Description:</label>
 <textarea name="description"
        {{ if $concluded }}disabled{{ end }}>{{ if .Description }}{{ .Description }}{{ end }}</textarea>
+
+<script>
+;(function(){
+  const label     = document.getElementById('start_time_label');
+  const picker    = document.getElementById('start_time_input');
+  const hidden    = document.getElementById('start_time_hidden');
+  const toggleBtn = document.getElementById('toggle_mode_btn');
+  // default date depiction
+  let mode = 'local';
+
+  // converts single digit numbers X to 0X to match time format
+  function pad(n){
+    return n.toString().padStart(2,'0');
+  }
+
+  // Click toggle button
+  toggleBtn.addEventListener('click', () => {
+    // If not time was set, only switch buttons and return
+    if (!picker.value) {
+      if (mode === 'local') {
+        mode = 'utc';
+        label.textContent = 'Start time (UTC):';
+        toggleBtn.textContent = 'Switch to Local';
+      } else {
+        mode = 'local';
+        label.textContent = 'Start time (Local):';
+        toggleBtn.textContent = 'Switch to UTC';
+      }
+      return;
+    }
+    // If time was set, convert from local to UTC or vice-versa and switch buttons
+    let year, month, day, hour, minute;
+
+    if (mode === 'local') {
+      // take the local-time in picker, show its UTC fields
+      const date = new Date(picker.value);
+      year   = date.getUTCFullYear();
+      month  = pad(date.getUTCMonth() + 1);
+      day    = pad(date.getUTCDate());
+      hour   = pad(date.getUTCHours());
+      minute = pad(date.getUTCMinutes());
+      picker.value = `${year}-${month}-${day}T${hour}:${minute}`;
+      mode = 'utc';
+      label.textContent = 'Start time (UTC):';
+      toggleBtn.textContent = 'Switch to Local';
+    } else {
+      // take the UTC fields in picker, show its local-time fields
+      const parts = picker.value.split(/[-T:]/);
+      const date = new Date(Date.UTC(
+        +parts[0], +parts[1]-1, +parts[2], +parts[3], +parts[4]
+      ));
+      year   = date.getFullYear();
+      month  = pad(date.getMonth() + 1);
+      day    = pad(date.getDate());
+      hour   = pad(date.getHours());
+      minute = pad(date.getMinutes());
+      picker.value = `${year}-${month}-${day}T${hour}:${minute}`;
+      mode = 'local';
+      label.textContent = 'Start time (Local):';
+      toggleBtn.textContent = 'Switch to UTC';
+    }
+  });
+
+  // on submit, always write ISO UTC into the hidden field that is submitted
+  document.querySelector('form').addEventListener('submit', () => {
+    if (!picker.value) {
+      hidden.value = '';
+      return;
+    }
+    let date;
+    if (mode === 'local') {
+      date = new Date(picker.value);
+    } else {
+      const p = picker.value.split(/[-T:]/);
+      date = new Date(Date.UTC(+p[0], +p[1]-1, +p[2], +p[3], +p[4]));
+    }
+    // convert back to UTC
+    hidden.value = date.toISOString().slice(0,16);
+  });
+})();
+</script>
 {{- end -}}
