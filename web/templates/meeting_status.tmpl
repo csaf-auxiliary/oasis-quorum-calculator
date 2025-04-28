@@ -143,7 +143,9 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 <input type="hidden" name="SESSIONID" value="{{ $sessionID }}">
 <input type="hidden" name="meeting" value="{{ $meetingID }}">
 <input type="hidden" name="committee" value="{{ $committeeID }}">
-<input type="submit" value="Update">
+<input type="hidden" name="rendered" value="{{ Now.UnixMicro }}">
+<input type="submit" name="action" value="Mark as Attending">
+<input type="submit" name="action" value="Mark as Not Attending">
 <input type="reset" value="Reset">
 </form>
 {{ end }}

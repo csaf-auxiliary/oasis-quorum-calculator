@@ -99,5 +99,36 @@ CREATE TABLE attendees (
     UNIQUE(meetings_id, nickname)
 );
 
+CREATE TABLE attendees_changes (
+    time        TIMESTAMP NOT NULL,
+    meetings_id INTEGER NOT NULL REFERENCES meetings(id) ON DELETE CASCADE,
+    nickname    VARCHAR NOT NULL REFERENCES users(nickname) ON DELETE CASCADE,
+    UNIQUE(meetings_id, nickname)
+);
+
+CREATE TRIGGER attendees_changes_after_insert
+AFTER INSERT ON attendees
+BEGIN
+    INSERT INTO attendees_changes (time, meetings_id, nickname)
+    VALUES (CURRENT_TIMESTAMP, NEW.meetings_id, NEW.nickname)
+    ON CONFLICT DO UPDATE SET time = CURRENT_TIMESTAMP;
+END;
+
+CREATE TRIGGER attendees_changes_after_update
+AFTER UPDATE ON attendees
+BEGIN
+    INSERT INTO attendees_changes (time, meetings_id, nickname)
+    VALUES (CURRENT_TIMESTAMP, NEW.meetings_id, NEW.nickname)
+    ON CONFLICT DO UPDATE SET time = CURRENT_TIMESTAMP;
+END;
+
+CREATE TRIGGER attendees_changes_after_delete
+AFTER DELETE ON attendees
+BEGIN
+    INSERT INTO attendees_changes (time, meetings_id, nickname)
+    VALUES (CURRENT_TIMESTAMP, OLD.meetings_id, OLD.nickname)
+    ON CONFLICT DO UPDATE SET time = CURRENT_TIMESTAMP;
+END;
+
 INSERT INTO users (nickname, password, lastname, is_admin)
     VALUES ('admin', {{ generatePassword "admin" | sqlQuote }}, 'Administrator', true);

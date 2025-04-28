@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"iter"
+	"log/slog"
 	"maps"
 	"slices"
 	"strconv"
@@ -397,33 +398,101 @@ func (m *Meeting) Attendees(ctx context.Context, db *database.Database) (Attende
 	return attendees, nil
 }
 
-// UpdateAttendees sets the attendees of a meeting to a given list.
-func UpdateAttendees(
+// Unattend removes the attendees from a given list from a meeting.
+func Unattend(
 	ctx context.Context, db *database.Database,
 	meetingID int64,
 	seq iter.Seq2[string, bool],
+	accept time.Time,
 ) error {
 	tx, err := db.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	// Delete all attendees.
-	const deleteAllSQL = `DELETE FROM attendees WHERE meetings_id = ?`
-	if _, err := tx.ExecContext(ctx, deleteAllSQL, meetingID); err != nil {
-		return fmt.Errorf("deleting attendees failed: %w", err)
-	}
-	// Insert back the given.
-	const insertAttendeeSQL = `INSERT INTO attendees (meetings_id, nickname, voting_allowed) ` +
-		`VALUES (?, ?, ?)`
-	stmt, err := tx.PrepareContext(ctx, insertAttendeeSQL)
+	const (
+		checkSQL = `SELECT time FROM attendees_changes ` +
+			`WHERE meetings_id = ? AND nickname = ?`
+		deleteSQL = `DELETE FROM attendees ` +
+			`WHERE meetings_id = ? AND nickname = ?`
+	)
+	deleteStmt, err := tx.PrepareContext(ctx, deleteSQL)
 	if err != nil {
-		return fmt.Errorf("preparing insert attendee failed: %w", err)
+		return fmt.Errorf("preparing unattend failed: %w", err)
 	}
-	defer stmt.Close()
+	defer deleteStmt.Close()
+	checkStmt, err := tx.PrepareContext(ctx, checkSQL)
+	if err != nil {
+		return fmt.Errorf("preparing unattend check failed: %w", err)
+	}
+	defer checkStmt.Close()
+
+	for nickname := range seq {
+		var t time.Time
+		switch err := checkStmt.QueryRowContext(ctx, meetingID, nickname).Scan(&t); {
+		case errors.Is(err, sql.ErrNoRows):
+			// It's okay.
+		case err != nil:
+			return fmt.Errorf("checking unattend failed: %w", err)
+		default:
+			if t.After(accept) {
+				slog.DebugContext(ctx, "race in unattend detected", "nickname", nickname)
+				continue
+			}
+		}
+		if _, err := deleteStmt.ExecContext(ctx, meetingID, nickname); err != nil {
+			return fmt.Errorf("unattend failed: %w", err)
+		}
+	}
+	return tx.Commit()
+}
+
+// Attend sets the attendees of a meeting to a given list.
+func Attend(
+	ctx context.Context, db *database.Database,
+	meetingID int64,
+	seq iter.Seq2[string, bool],
+	accept time.Time,
+) error {
+	tx, err := db.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	const (
+		checkSQL = `SELECT time FROM attendees_changes ` +
+			`WHERE meetings_id = ? AND nickname = ?`
+		insertSQL = `INSERT INTO attendees ` +
+			`(meetings_id, nickname, voting_allowed) ` +
+			`VALUES (?, ?, ?) ` +
+			`ON CONFLICT DO UPDATE SET voting_allowed = ?`
+	)
+	insertStmt, err := tx.PrepareContext(ctx, insertSQL)
+	if err != nil {
+		return fmt.Errorf("preparing attend failed: %w", err)
+	}
+	defer insertStmt.Close()
+	checkStmt, err := tx.PrepareContext(ctx, checkSQL)
+	if err != nil {
+		return fmt.Errorf("preparing attend check failed: %w", err)
+	}
+	defer checkStmt.Close()
+
 	for nickname, voting := range seq {
-		if _, err := stmt.ExecContext(ctx, meetingID, nickname, voting); err != nil {
-			return fmt.Errorf("inserting attendee failed: %w", err)
+		var t time.Time
+		switch err := checkStmt.QueryRowContext(ctx, meetingID, nickname).Scan(&t); {
+		case errors.Is(err, sql.ErrNoRows):
+			// It's okay.
+		case err != nil:
+			return fmt.Errorf("checking attend failed: %w", err)
+		default:
+			if t.After(accept) {
+				slog.DebugContext(ctx, "race in attend detected", "nickname", nickname)
+				continue
+			}
+		}
+		if _, err := insertStmt.ExecContext(ctx, meetingID, nickname, voting, voting); err != nil {
+			return fmt.Errorf("attend failed: %w", err)
 		}
 	}
 	return tx.Commit()

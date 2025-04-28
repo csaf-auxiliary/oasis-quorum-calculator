@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"slices"
+	"time"
 
 	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/auth"
 	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/config"
@@ -54,6 +55,7 @@ var templateFuncs = template.FuncMap{
 	"MeetingCommitteeIDsFilter": models.MeetingCommitteeIDsFilter,
 	"DatetimeHoursMinutes":      datetimeHoursMinutes,
 	"HoursMinutes":              hoursMinutes,
+	"Now":                       func() time.Time { return time.Now().UTC() },
 }
 
 // NewController returns a new Controller.
