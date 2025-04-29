@@ -35,6 +35,16 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{ if .Description }}<strong>Description</strong>: {{ .Description }}<br>{{ end }}
 {{ end }}
 <br>
+{{ if $gathering }}<strong>This is only a gathering meeting!<strong>
+{{ else }}
+<strong>Quorum</strong>:
+<span class="{{ .Quorum.Number }} {{if .Quorum.Reached }}bg-reached{{else}}bg-notreached{{end}}">
+{{ if not .Quorum.Reached }}not {{ end }}reached</span>
+({{ .Quorum.Number }} of {{ .Quorum.Voting }} voting members needed)
+<br>
+<strong>Attending Voting Members</strong>:
+{{ .Quorum.AttendingVoting }} ({{ printf "%.1f" .Quorum.Percent }}%)
+<br>
 <strong>Status</strong>:
 {{ if $chair }}
 {{ if $concluded }}Concluded{{ else }}
@@ -52,10 +62,6 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{ else if $running }}Running
 {{ end }}
 {{ end }}
-<br>
-{{ if $gathering }}<strong>This is only a gathering meeting!<strong>
-{{ else }}
-<strong>Quorum</strong>: {{ .Quorum.Number }} ({{ if not .Quorum.Reached }}not {{ end }}reached)<br>
 <table>
   <thead>
   <tr>
@@ -65,24 +71,16 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
   </thead>
   <tbody>
   <tr>
-    <td>Total</td>
-    <td>{{ .Quorum.Total }}</td>
-  </tr>
-  <tr>
     <td>Members</td>
     <td>{{ .Quorum.Member }}</td>
   </tr>
   <tr>
-    <td>Voting Members</td>
-    <td>{{ .Quorum.Voting }}</td>
-  </tr>
-  <tr>
-    <td>Attending Voting Members</td>
-    <td>{{ .Quorum.AttendingVoting }}</td>
-  </tr>
-  <tr>
     <td>Persistent Non-Voting Members</td>
     <td>{{ .Quorum.NonVoting }}</td>
+  </tr>
+  <tr>
+    <td>Total</td>
+    <td>{{ .Quorum.Total }}</td>
   </tr>
   </tbody>
 </table>
@@ -99,6 +97,7 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 <table>
 <thead>
   <tr>
+    {{ if $allowWrite }}<th>Selection</th>{{ end }}
     <th>Attending</th>
     <th>First name</th>
     <th>Last name</th>
@@ -115,13 +114,12 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 <tbody>
 {{ range .Members }}
   <tr>
-    <td>{{ if $allowWrite }}<input type="checkbox"
-                                name="attend"
-                                value="{{ .Nickname }}"
-                                {{ if index $attendees .Nickname }}checked{{ end }}>
-        {{- else }}{{ if index $attendees .Nickname }}&check;{{ end }}
-        {{- end -}}
-    </td>
+    {{ if $allowWrite }}
+    <td><input type="checkbox"
+               name="attend"
+               value="{{ .Nickname }}"></td>
+    {{- end }}
+    <td>{{ if index $attendees .Nickname }}&check;{{ end }}</td>
     <td>{{ if ne .Firstname nil }}{{ .Firstname }}{{ end }}</td>
     <td>{{ if ne .Lastname nil }}{{ .Lastname }}{{ end }}</td>
     {{ if $notOnlyMember }}
@@ -141,7 +139,9 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 <input type="hidden" name="SESSIONID" value="{{ $sessionID }}">
 <input type="hidden" name="meeting" value="{{ $meetingID }}">
 <input type="hidden" name="committee" value="{{ $committeeID }}">
-<input type="submit" value="Update">
+<input type="hidden" name="rendered" value="{{ Now.UnixMicro }}">
+<input type="submit" name="action" value="Mark as Attending">
+<input type="submit" name="action" value="Mark as Not Attending">
 <input type="reset" value="Reset">
 </form>
 {{ end }}

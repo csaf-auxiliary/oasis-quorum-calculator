@@ -133,7 +133,7 @@ func (ms MemberStatus) String() string {
 
 // Compare compares this user with the other by its
 // firstname, lastname and nickname.
-func (u User) Compare(o *User) int {
+func (u *User) Compare(o *User) int {
 	return cmp.Or(
 		misc.CompareEmptyStrings(u.Firstname, o.Firstname),
 		misc.CompareEmptyStrings(u.Lastname, o.Lastname),

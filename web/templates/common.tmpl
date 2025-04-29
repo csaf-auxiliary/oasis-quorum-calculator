@@ -17,8 +17,9 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
   {{- if $running }}
     <meta http-equiv="Refresh" content="300">
   {{- end }}
+  <link rel="stylesheet" href="/static/styles/styles.css">
   <link rel="stylesheet" href="/static/styles/simple.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Color+Emoji&family=Noto+Emoji:wght@300..700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/styles/openmoji.css">
   <title>OQC - OASIS Quorum Calculator</title>
 </head>
 <body>
@@ -27,20 +28,20 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
     <nav>
       {{ if .User }}
         {{ if .User.IsAdmin }}
-          <a href="/users?SESSIONID={{ .Session.ID }}">users <span class="emoji">&#x1F465;</span></a>
-          <a href="/committees?SESSIONID={{ .Session.ID }}">committees <span class="emoji">&#x1F3DB;</span></a>
+          <a href="/users?SESSIONID={{ .Session.ID }}">users <span class="emojiom">&#x1F465;</span></a>
+          <a href="/committees?SESSIONID={{ .Session.ID }}">committees <span class="emojiom">&#x1F3DB;</span></a>
         {{ end }}
         {{ $chair  := .User.CountMemberships (Role "chair") }}
         {{ $member := .User.CountMemberships (Role "member") }}
         {{ if $chair }}
-          <a href="/chair?SESSIONID={{ .Session.ID }}">chair <span class="emoji">&#x1F9FE;</span> ({{ $chair }})</a>
+          <a href="/chair?SESSIONID={{ .Session.ID }}">chair <span class="emojiom">&#x1F9FE; ({{ $chair }})</span></a>
         {{ end }}
         {{ if $member }}
-          <a href="/member?SESSIONID={{ .Session.ID }}">member <span class="emoji">&#x1F465;</span> ({{ $member }})</a>
+          <a href="/member?SESSIONID={{ .Session.ID }}">member <span class="emojiom">&#x1F465;</span> ({{ $member }})</a>
         {{ end }}
-        <a href="/user?SESSIONID={{ .Session.ID }}">me <span class="emoji">&#x1F464;</span> (<strong>{{ .User.Nickname }}</strong>)</a>
+        <a href="/user?SESSIONID={{ .Session.ID }}">me <span class="emojiom">&#x1F464;</span> (<strong>{{ .User.Nickname }}</strong>)</a>
       {{ end }}
-      <a href="/logout?SESSIONID={{ .Session.ID }}">Logout <span class="emoji">&#x1F6AA;</span></a>
+      <a href="/logout?SESSIONID={{ .Session.ID }}">Logout <span class="emojiom">🚪</span></a>
     </nav>
     {{ end }}
     <h4>OQC - OASIS Quorum Calculator</h4>
