@@ -68,8 +68,8 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 <th>Committee</th>
 <th>Chair</th>
 <th>Member</th>
-<th> Non-Voting<br>Member </th>
 <th> Voting<br>Member </th>
+<th> Non-Voting<br>Member </th>
 <th> Persistent<br>Non-Voting<br>Member </th>
 </thead>
 {{- end -}}
@@ -78,8 +78,8 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{ if .Memberships }}
 {{ $member := Role "member" }}
 {{ $chair  := Role "chair" }}
-{{ $statusMember     := MemberStatus "member" }}
 {{ $statusVoting     := MemberStatus "voting" }}
+{{ $statusMember     := MemberStatus "member" }}
 {{ $statusNoneVoting := MemberStatus "nonevoting" }}
 <table>
   {{ template "committees_table_header" }}
@@ -89,8 +89,8 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
     <td>{{ .Committee.Name }}</td>
     <td>{{ if .HasRole $chair   }}&check;{{ end }}</td>
     <td>{{ if .HasRole $member  }}&check;{{ end }}</td>
-    <td>{{ if and (.HasRole $member) (eq .Status $statusMember) }}&check;{{ end }}</td>
     <td>{{ if and (.HasRole $member) (eq .Status $statusVoting) }}&check;{{ end }}</td>
+    <td>{{ if and (.HasRole $member) (eq .Status $statusMember) }}&check;{{ end }}</td>
     <td>{{ if and (.HasRole $member) (eq .Status $statusNoneVoting) }}&check;{{ end }}</td>
   <tr>
   {{ end }}
@@ -105,8 +105,8 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{ if $committees }}
 {{ $member := Role "member" }}
 {{ $chair  := Role "chair" }}
-{{ $statusMember     := MemberStatus "member" }}
 {{ $statusVoting     := MemberStatus "voting" }}
+{{ $statusMember     := MemberStatus "member" }}
 {{ $statusNoneVoting := MemberStatus "nonevoting" }}
 <table>
   {{ template "committees_table_header" }}
@@ -133,14 +133,14 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
     <td>
       <input type="radio"
              name="status{{ .ID }}"
-             value="member"
-             {{ if and $isMember (eq $ms.Status $statusMember) }}checked{{ end }}>
+             value="voting"
+             {{ if and $isMember (eq $ms.Status $statusVoting) }}checked{{ end }}>
     </td>
     <td>
       <input type="radio"
              name="status{{ .ID }}"
-             value="voting"
-             {{ if and $isMember (eq $ms.Status $statusVoting) }}checked{{ end }}>
+             value="member"
+             {{ if and $isMember (eq $ms.Status $statusMember) }}checked{{ end }}>
     </td>
     <td>
       <input type="radio"
@@ -152,10 +152,10 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
     <td><input name="role_committee" type="checkbox" value="chair{{ .ID }}"></td>
     <td><input name="role_committee" type="checkbox" value="member{{ .ID }}"></td>
     <td>
-      <input type="radio" name="status{{ .ID }}" value="member">
+      <input type="radio" name="status{{ .ID }}" value="voting">
     </td>
     <td>
-      <input type="radio" name="status{{ .ID }}" value="voting">
+      <input type="radio" name="status{{ .ID }}" value="member">
     </td>
     <td>
       <input type="radio" name="status{{ .ID }}" value="nonevoting">

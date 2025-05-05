@@ -64,8 +64,8 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{ end }}
 {{ end }}
 {{ if .Members }}
-{{- $statusMember     := MemberStatus "member" }}
 {{- $statusVoting     := MemberStatus "voting" }}
+{{- $statusMember     := MemberStatus "member" }}
 {{- $statusNoneVoting := MemberStatus "nonevoting" }}
 <fieldset>
 <legend>Attendees</legend>
@@ -83,8 +83,8 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
           <th>Login</th>
     {{ end }}
 {{ if not $gathering }}
-    <th>Non-Voting<br>Member</th>
     <th>Voting<br>Member</th>
+    <th>Non-Voting<br>Member</th>
     <th>Persistent<br>Non-Voting<br>Member</th>
 {{ end }}
   </tr>
@@ -105,8 +105,8 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
     {{ end }}
 {{ if not $gathering }}
     {{ $ms := .FindMembership $committeeName }}
-    <td>{{ if eq $ms.Status $statusMember }}&check;{{ end }}</td>
     <td>{{ if eq $ms.Status $statusVoting }}&check;{{ end }}</td>
+    <td>{{ if eq $ms.Status $statusMember }}&check;{{ end }}</td>
     <td>{{ if eq $ms.Status $statusNoneVoting }}&check;{{ end }}</td>
 {{ end }}
   </tr>
@@ -123,8 +123,8 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
       <td></td>
     {{ end }}
     {{ if not $gathering }}
-      <td>{{ .Quorum.Member }}</td>
       <td>{{ .Quorum.Voting }}</td>
+      <td>{{ .Quorum.Member }}</td>
       <td>{{ .Quorum.NonVoting }}</td>
     {{ end }}
   </tr>
