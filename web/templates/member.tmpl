@@ -66,6 +66,7 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
   <legend>Committee: <strong>{{ .Name }}</strong></legend>
   {{ $filter := CommitteeIDFilter .ID }}
   {{ if $meetings.Contains $filter }}
+  <a href="/meetings_overview?SESSIONID={{ $sessionID }}&committee={{ $committeeID }}">Meetings overview</a><br>
   <table>
   <thead>
     <tr>
