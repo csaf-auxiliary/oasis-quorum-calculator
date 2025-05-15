@@ -1,0 +1,82 @@
+{{- /*
+This file is Free Software under the Apache-2.0 License
+without warranty, see README.md and LICENSE for details.
+
+SPDX-License-Identifier: Apache-2.0
+
+SPDX-FileCopyrightText: 2025 German Federal Office for Information Security (BSI) <https://www.bsi.bund.de>
+Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
+*/ -}}
+{{ template "header" . }}
+{{- $sessionID := .Session.ID }}
+{{- $user      := .User }}
+<fieldset>
+  <legend>Committee: <strong>{{ .Committee.Name }}</strong></legend>
+  <form action="/absent_store?SESSIONID={{ $sessionID }}" method="post" accept-charset="UTF-8">
+  <table>
+  <thead>
+    <tr>
+      <th></th>
+      <th>Name</th>
+      <th>Start</th>
+      <th>Stop</th>
+    </tr>
+  </thead>
+  <tbody>
+  {{ range $index, $member := .MemberAbsent }}{{ with $member }}
+    <tr>
+      <td>
+        <input type="checkbox" name="users" id="check{{ $index }}" value="{{ .Name }}">
+      </td>
+      <td>
+        {{ .Name }}
+      </td>
+      <td>
+        <time datetime="{{ .StartTime.UTC.Format "2006-01-02T15:04:05Z07:00" }}">{{ .StartTime.UTC.Format "2006-01-02 15:04 MST" }}</time>
+      </td>
+      <td>
+        <time datetime="{{ .StopTime.UTC.Format "2006-01-02T15:04:05Z07:00" }}">{{ .StopTime.UTC.Format "2006-01-02 15:04 MST" }}</time>
+      </td>
+    </tr>
+  {{ end }}
+  {{ end }}
+  </tbody>
+  </table>
+  <input type="reset" value="Clear">
+  <input type="submit" name="delete" value="Delete">
+  </form>
+</fieldset>
+
+<fieldset>
+  <legend>Add absent</legend>
+  <form action="/absent_create_store?SESSIONID={{ $sessionID }}" method="post" accept-charset="UTF-8">
+    <label for="nickname">Nickname</label>
+    <input list="members" id="nickname" name="nickname" value="" required>
+    <datalist id="members">
+     {{ range .Members }}
+      <option value="{{ .Nickname }}">
+    {{ end }}
+    </datalist>
+    <label for="start_time">Start time:</label>
+    <input type="datetime-local"
+           name="start_time"
+           id="start_time"
+           value=""
+           required>
+    <input type="text" name="timezone" value="UTC">
+    <br>
+
+    <label for="stop_time">Start time:</label>
+    <input type="datetime-local"
+           name="start_time"
+           id="stop_time"
+           value=""
+           required>
+    <br>
+    <input type="hidden" name="SESSIONID" value="{{ .Session.ID }}">
+    <input type="hidden" name="committee" value="{{ .Committee }}">
+    <input type="submit" value="Create">
+    <input type="reset" value="Reset">
+  </form>
+</fieldset>
+{{ template "footer" }}

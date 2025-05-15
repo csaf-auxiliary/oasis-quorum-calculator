@@ -140,7 +140,13 @@ func ChangeMeetingStatus(
 						if err != nil {
 							return err
 						}
+						isExcused, err := IsUserExcusedFromMeetingTx(ctx, tx, user.Nickname, committeeID, prevMeeting.StopTime)
+						if err != nil {
+							return err
+						}
 						switch {
+						case isExcused:
+							// user had approved absent
 						case !wasMemberPrev:
 							// user was not member so that is his/her first strike.
 						case memberStatus != Voting:

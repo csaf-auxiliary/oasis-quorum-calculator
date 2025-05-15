@@ -608,6 +608,28 @@ func LoadCommitteeUsersTx(
 	return users, nil
 }
 
+// IsUserExcusedFromMeetingTx figures out if the user was excused
+// for a given user in a committee in a given point in time.
+// Returns false if the user was not excused at this time.
+func IsUserExcusedFromMeetingTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	nickname string, committeeID int64,
+	when time.Time,
+) (bool, error) {
+	var isExcused bool
+	const statusSQL = `SELECT 1 FROM member_absent ` +
+		`WHERE nickname = ? AND committees_id = ? AND unixepoch(?) BETWEEN unixepoch(start_time) AND unixepoch(stop_time)` +
+		`LIMIT 1`
+	switch err := tx.QueryRowContext(ctx, statusSQL, nickname, committeeID, when).Scan(&isExcused); {
+	case errors.Is(err, sql.ErrNoRows):
+		return false, nil
+	case err != nil:
+		return false, fmt.Errorf("fetching member absent failed: %w", err)
+	}
+	return isExcused, nil
+}
+
 // UserMemberStatusSinceTx figures out the member status
 // for a given user in a committee after a given point in time.
 // Returns false the user was not in the committee at this time.
