@@ -39,10 +39,10 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
                  ><strong>{{ ($user.CommitteeByID $committeeID).Name }}</strong></a>
               {{- if eq .Status $meetingRunning }}
                 {{ if $att }}<a href="/member_attend?SESSIONID={{ $sessionID }}&meeting={{ .ID }}&committee={{ $committeeID }}&attend=false">
-                <mark>Click&nbsp;to&nbsp;skip!</mark></a>
+                <mark>Click&nbsp;to&nbsp;unregister&nbsp;my&nbsp;attendance!</mark></a>
                 {{- else -}}
                 <a href="/member_attend?SESSIONID={{ $sessionID }}&meeting={{ .ID }}&committee={{ $committeeID }}&attend=true">
-                <mark>Click&nbsp;to&nbsp;join!</mark></a>
+                <mark>Click&nbsp;to&nbsp;record&nbsp;my&nbsp;attendance!</mark></a>
                 {{- end -}}
               {{- end }}
             </td>
@@ -86,8 +86,8 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
           {{- else }}Concluded{{ if $att }} (Attended){{ end }}{{ end -}}
         </a>
         {{- if eq .Status $meetingRunning }}
-          {{ if $att }}<a href="/member_attend?SESSIONID={{ $sessionID }}&meeting={{ .ID }}&committee={{ $committeeID }}&attend=false"><mark>Click&nbsp;to&nbsp;skip!</mark></a>
-          {{- else }}<a href="/member_attend?SESSIONID={{ $sessionID }}&meeting={{ .ID }}&committee={{ $committeeID }}&attend=true"><mark>Click&nbsp;to&nbsp;join!</mark></a>{{ end -}}
+          {{ if $att }}<a href="/member_attend?SESSIONID={{ $sessionID }}&meeting={{ .ID }}&committee={{ $committeeID }}&attend=false"><mark>Click&nbsp;to&nbsp;unregister&nbsp;my&nbsp;attendance!</mark></a>
+          {{- else }}<a href="/member_attend?SESSIONID={{ $sessionID }}&meeting={{ .ID }}&committee={{ $committeeID }}&attend=true"><mark>Click&nbsp;to&nbsp;record&nbsp;my&nbsp;attendance!</mark></a>{{ end -}}
         {{- end }}
       </td>
       <td>

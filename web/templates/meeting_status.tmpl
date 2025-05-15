@@ -23,10 +23,23 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{- $allowWrite     := and $running $chair }}
 {{- $concluded      := eq .Meeting.Status (MeetingStatus "concluded") }}
 {{- $notOnlyMember  := or .User.IsAdmin $chair -}}
+{{- $userNickname   := .User.Nickname }}
+
 {{- if $running }}
 <p><a href="/meeting_status?SESSIONID={{ $sessionID }}&meeting={{ $meetingID }}&committee={{ $committeeID }}"
       >&#x27F3; Refresh to see who has attended recently.</a>
 </p>
+
+{{- if not (index $attendees $userNickname) }}
+<a href="/member_attend?SESSIONID={{ $sessionID }}&meeting={{ $meetingID }}&committee={{ $committeeID }}&attend=true&redirect=meeting_status">
+  <mark>Click&nbsp;to&nbsp;record&nbsp;my&nbsp;attendance!</mark>
+</a>
+{{ else }}
+<a href="/member_attend?SESSIONID={{ $sessionID }}&meeting={{ $meetingID }}&committee={{ $committeeID }}&attend=false&redirect=meeting_status">
+  <mark>Click&nbsp;to&nbsp;unregister&nbsp;my&nbsp;attendance!</mark>
+</a>
+{{ end }}
+
 {{- end }}
 <p>
 <strong>Committee</strong>: {{ $committeeName }}<br>

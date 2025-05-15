@@ -9,6 +9,7 @@
 package web
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 
@@ -63,5 +64,15 @@ func (c *Controller) memberAttend(w http.ResponseWriter, r *http.Request) {
 	if !check(w, r, models.UpdateAttendee(ctx, c.db, meetingID, user.Nickname, attend, voting)) {
 		return
 	}
-	c.member(w, r)
+	// new parameter where to redirect
+	redirect := r.FormValue("redirect")
+
+	switch redirect {
+	case "meeting_status":
+		sessionID := r.FormValue("SESSIONID")
+		target := fmt.Sprintf("/meeting_status?SESSIONID=%s&meeting=%d&committee=%d", sessionID, meetingID, committeeID)
+		http.Redirect(w, r, target, http.StatusSeeOther)
+	default:
+		c.member(w, r)
+	}
 }
