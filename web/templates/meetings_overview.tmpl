@@ -10,6 +10,7 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{ template "header" . }}
 {{- $sessionID   := .Session.ID }}
 {{- $committeeID := .Committee.ID }}
+{{ $chair  := .User.CountMemberships (Role "chair") (Role "secretary") }}
 <fieldset>
 <legend>Meetings: <strong>{{ .Committee.Name }}</strong></legend>
 {{- $data := .Overview.Data }}
@@ -87,4 +88,8 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
   </table>
 </fieldset>
 {{- end }}
+
+{{ if $chair }}
+  <a href="/meetings_export?SESSIONID={{ $sessionID }}&committee={{ $committeeID }}">Export as CSV</a>
+{{ end }}
 {{ template "footer" }}
