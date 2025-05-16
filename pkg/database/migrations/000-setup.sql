@@ -134,3 +134,12 @@ END;
 
 INSERT INTO users (nickname, password, lastname, is_admin)
     VALUES ('admin', {{ generatePassword "admin" | sqlQuote }}, 'Administrator', true);
+
+CREATE TABLE member_absent (
+    nickname       VARCHAR NOT NULL REFERENCES users(nickname)    ON DELETE CASCADE,
+    start_time     TIMESTAMP NOT NULL,
+    stop_time      TIMESTAMP NOT NULL,
+    committee_id  INTEGER NOT NULL REFERENCES committees(id)     ON DELETE CASCADE,
+    CHECK (start_time < stop_time),
+    UNIQUE (nickname, start_time)
+);

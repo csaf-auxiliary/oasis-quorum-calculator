@@ -75,6 +75,16 @@ type MeetingsOverview struct {
 	Users          []*User // Only basic user data, no memberships.
 }
 
+// MemberAbsent represents a time range where a member is absent.
+type MemberAbsent struct {
+	Name      string
+	StartTime time.Time
+	StopTime  time.Time
+}
+
+// MemberAbsents is a slice of excused member absents.
+type MemberAbsents []*MemberAbsent
+
 // Number is the number of voting members to reach the quorum.
 func (q *Quorum) Number() int {
 	return 1 + q.Voting/2
@@ -767,4 +777,88 @@ func LoadMeetingsOverview(
 		UsersHistories: histories,
 	}
 	return overview, nil
+}
+
+// LoadAbsent loads all absent times of the members of a committee.
+func LoadAbsent(ctx context.Context, db *database.Database, committeeID int64) (MemberAbsents, error) {
+	const loadSQL = `SELECT nickname, start_time, stop_time FROM member_absent ` +
+		`WHERE committee_id = ? ` +
+		`ORDER BY stop_time DESC`
+	rows, err := db.DB.QueryContext(ctx, loadSQL, committeeID)
+	if err != nil {
+		return nil, fmt.Errorf("loading member absent failed: %w", err)
+	}
+	defer rows.Close()
+	var memberAbsents MemberAbsents
+	for rows.Next() {
+		var m MemberAbsent
+		if err := rows.Scan(&m.Name, &m.StartTime, &m.StopTime); err != nil {
+			return nil, fmt.Errorf("scanning member absent failed: %w", err)
+		}
+		memberAbsents = append(memberAbsents, &m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("loading member absent failed: %w", err)
+	}
+	return memberAbsents, nil
+}
+
+// StoreNew stores a new excused absent into the database.
+func (m *MemberAbsent) StoreNew(ctx context.Context, db *database.Database) error {
+	const insertSQL = `INSERT INTO member_absent ` +
+		`(nickname, start_time, stop_time) ` +
+		`VALUES (?, ?, ?)`
+	if err := db.DB.QueryRowContext(ctx, insertSQL,
+		m.Name,
+		m.StartTime,
+		m.StopTime,
+	).Scan(); err != nil {
+		return fmt.Errorf("inserting excused absent into database failed: %w", err)
+	}
+	return nil
+}
+
+// DeleteAbsentEntries removes excused absent entries by their nickname and start time.
+func DeleteAbsentEntries(
+	ctx context.Context,
+	db *database.Database,
+	committeeID int64,
+	meetingsIDs iter.Seq[int64],
+) error {
+	tx, err := db.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+	const deleteSQL = `DELETE FROM member_absent ` +
+		`WHERE nickname = ? AND start_time = ?` // MeetingConcluded
+	stmt, err := tx.PrepareContext(ctx, deleteSQL)
+	if err != nil {
+		return fmt.Errorf("preparing delete meetings failed: %w", err)
+	}
+	defer stmt.Close()
+	for meetingID := range meetingsIDs {
+		if _, err := stmt.ExecContext(ctx, meetingID, committeeID); err != nil {
+			return fmt.Errorf("deleting meeting failed: %w", err)
+		}
+	}
+	return tx.Commit()
+}
+
+// MemberAbsentOverlapFilter creates a filter which checks if an excused
+// absent overlaps a given interval.
+func MemberAbsentOverlapFilter(nickname string, start, stop time.Time) func(m *MemberAbsent) bool {
+	return func(m *MemberAbsent) bool {
+		return nickname == m.Name && !(m.StopTime.Before(start) || stop.Before(m.StartTime))
+	}
+}
+
+// Filter returns a sequence of meetings which fulfill the given condition.
+func (ma MemberAbsents) Filter(cond func(m *MemberAbsent) bool) iter.Seq[*MemberAbsent] {
+	return misc.Filter(slices.Values(ma), cond)
+}
+
+// Contains checks if there is a excused absent fulfilling the given condition.
+func (ma MemberAbsents) Contains(cond func(m *MemberAbsent) bool) bool {
+	return slices.ContainsFunc(ma, cond)
 }
