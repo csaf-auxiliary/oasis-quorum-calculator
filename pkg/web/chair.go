@@ -525,7 +525,7 @@ func (c *Controller) meetingsExport(w http.ResponseWriter, r *http.Request) {
 			attendeesList = append(attendeesList, fmt.Sprintf("%s:%s", nickname, status))
 		}
 		// Convert to String to write to CSV
-		AttendeesString := strings.Join(attendeesList, ",")
+		attendeesString := strings.Join(attendeesList, ",")
 
 		// All users except those who attended to get a list of all non-Attendees
 		var nonAttendeesList []string
@@ -549,7 +549,7 @@ func (c *Controller) meetingsExport(w http.ResponseWriter, r *http.Request) {
 			fmt.Sprintf("%.2f", quorum.Percent()),
 			fmt.Sprintf("%d", quorum.AttendingVoting),
 			fmt.Sprintf("%d", totalAttendees),
-			AttendeesString,
+			attendeesString,
 			nonAttendeesString,
 		}
 		// and write it to a file
