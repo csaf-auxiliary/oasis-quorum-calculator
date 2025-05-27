@@ -31,7 +31,7 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 <th>
   <a href="/meeting_status?SESSIONID={{ $sessionID}}&committee={{ $committeeID }}&meeting={{ $m.ID }}"><time datetime="{{ $m.StartTime.UTC.Format "2006-01-02T15:04:05Z07:00" }}">{{ $m.StartTime.UTC.Format "2006-01-02 15:04 MST" }}</time></a>
   <br>{{ if $m.Gathering }}Gathering{{ else }}Voting{{ end }}
-  {{ if $m.Description }}<br>{{ $.Description | Shorten }}{{ end }}
+  {{ if $m.Description }}<br>{{ $m.Description | Shorten }}{{ end }}
   <br>
   {{-      if eq $m.Status $waiting -}}Waiting
   {{- else if eq $m.Status $running -}}Running
