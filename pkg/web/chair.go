@@ -431,12 +431,17 @@ func (c *Controller) meetingStatusError(
 	if !check(w, r, err) {
 		return
 	}
+	histories, err := models.LoadUsersHistories(ctx, c.db, committeeID)
+	if !check(w, r, err) {
+		return
+	}
 
 	var numVoters, attendingVoters, numNonVoters, numMembers int
 	for _, member := range members {
+		history := histories[member.Nickname]
 		if ms := member.FindMembership(committee.Name); ms != nil &&
 			ms.HasRole(models.MemberRole) {
-			switch ms.Status {
+			switch history.Status(meeting.StopTime) {
 			case models.Voting:
 				numVoters++
 				if attendees[member.Nickname] {
