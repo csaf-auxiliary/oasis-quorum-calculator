@@ -704,6 +704,20 @@ func UpdateUserCommitteeStatusTx(
 	return nil
 }
 
+// LoadUsersHistories loads all users of a committee.
+func LoadUsersHistories(
+	ctx context.Context,
+	db *database.Database,
+	committeeID int64,
+) (UsersHistories, error) {
+	tx, err := db.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	return LoadUsersHistoriesTx(ctx, tx, committeeID)
+}
+
 // LoadUsersHistoriesTx loads the histories of the users of a committee.
 func LoadUsersHistoriesTx(
 	ctx context.Context,
