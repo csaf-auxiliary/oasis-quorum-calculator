@@ -14,6 +14,9 @@ all: build
 
 build:
 	$(GOBUILD)
+	go build -o $(BUILD_DIR)/sendaccountmails ./cmd/sendaccountmails
+	go build -o $(BUILD_DIR)/createusers ./cmd/createusers
+	go build -o $(BUILD_DIR)/importcommittee ./cmd/importcommittee
 
 run: build
 	./$(BUILD_DIR)/$(APP_NAME)
