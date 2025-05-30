@@ -143,3 +143,14 @@ CREATE TABLE member_absent (
     CHECK (start_time < stop_time),
     UNIQUE (nickname, committee_id, start_time)
 );
+
+CREATE TRIGGER delete_references_before_user
+BEFORE DELETE ON users
+FOR EACH ROW
+BEGIN
+    DELETE FROM attendees         WHERE nickname = OLD.nickname;
+    DELETE FROM attendees_changes WHERE nickname = OLD.nickname;
+    DELETE FROM committee_roles   WHERE nickname = OLD.nickname;
+    DELETE FROM sessions          WHERE nickname = OLD.nickname;
+    DELETE FROM member_absent     WHERE nickname = OLD.nickname;
+END;
