@@ -308,7 +308,7 @@ func main() {
 		csvFile     string
 	)
 	flag.StringVar(&committee, "committee", "", "Committee to be imported")
-	flag.StringVar(&csvFile, "csv", "committee.csvFile", "CSV with a committee time table to import")
+	flag.StringVar(&csvFile, "csv", "committee.csv", "CSV with a committee time table to import")
 	flag.StringVar(&databaseURL, "database", "oqcd.sqlite", "SQLite database")
 	flag.StringVar(&databaseURL, "d", "oqcd.sqlite", "SQLite database (shorthand)")
 	flag.Parse()
