@@ -17,6 +17,7 @@ build:
 	go build -o $(BUILD_DIR)/sendaccountmails ./cmd/sendaccountmails
 	go build -o $(BUILD_DIR)/createusers ./cmd/createusers
 	go build -o $(BUILD_DIR)/importcommittee ./cmd/importcommittee
+	go build -o $(BUILD_DIR)/exportmeeting ./cmd/exportmeeting
 
 run: build
 	./$(BUILD_DIR)/$(APP_NAME)
