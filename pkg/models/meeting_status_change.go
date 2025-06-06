@@ -37,6 +37,7 @@ func ChangeMeetingStatus(
 	db *database.Database,
 	meetingID, committeeID int64,
 	meetingStatus MeetingStatus,
+	timer time.Time,
 ) error {
 
 	// Extra checks before we try to change the status.
@@ -186,14 +187,13 @@ func ChangeMeetingStatus(
 
 		// Store the changes.
 		if len(upgrades) > 0 || len(downgrades) > 0 {
-			when := time.Now() // TODO: Should we adjust the end time of the meeting?
 			if err := UpdateUserCommitteeStatusTx(
 				ctx, tx,
 				misc.Join2(
 					misc.Attribute(slices.Values(upgrades), Voting),
 					misc.Attribute(slices.Values(downgrades), Member)),
 				committeeID,
-				when,
+				timer,
 			); err != nil {
 				return fmt.Errorf("upgrading / downgrading members failed: %w", err)
 			}

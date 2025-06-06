@@ -487,9 +487,19 @@ func (c *Controller) meetingStatusStore(w http.ResponseWriter, r *http.Request) 
 	if !checkParam(w, err1, err2, err3) {
 		return
 	}
+
+	// needed for timestamps for begin and end of meeting
+	meeting, err := models.LoadMeeting(ctx, c.db, meetingID, committeeID)
+	if !check(w, r, err) {
+		return
+	}
+
+	// Whether to use time.Now() or not
+	timer := misc.CalculateEndpoint(meeting.StartTime, meeting.StopTime)
 	switch err := models.ChangeMeetingStatus(
 		ctx, c.db,
 		meetingID, committeeID, meetingStatus,
+		timer,
 	); {
 	case errors.Is(err, models.ErrAlreadyRunning):
 		c.meetingStatusError(w, r, "Already have a running meeting in this committee.")

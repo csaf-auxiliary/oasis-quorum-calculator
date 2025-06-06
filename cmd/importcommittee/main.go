@@ -207,6 +207,9 @@ func run(committee, csv, databaseURL string) error {
 	}
 	defer db.Close(ctx)
 	committees, err := models.LoadCommittees(ctx, db)
+	if err != nil {
+		return err
+	}
 
 	var committeeModel *models.Committee
 	for _, c := range committees {
@@ -287,7 +290,7 @@ func run(committee, csv, databaseURL string) error {
 			return err
 		}
 
-		if err = models.ChangeMeetingStatus(ctx, db, meeting.ID, committeeModel.ID, models.MeetingConcluded); err != nil {
+		if err = models.ChangeMeetingStatus(ctx, db, meeting.ID, committeeModel.ID, models.MeetingConcluded, meeting.StopTime); err != nil {
 			return err
 		}
 	}
