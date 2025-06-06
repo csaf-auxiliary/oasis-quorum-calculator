@@ -118,7 +118,7 @@ func (mw *Middleware) User(next http.HandlerFunc) http.HandlerFunc {
 			http.Error(w, http.StatusText(http.StatusUnauthorized), http.StatusUnauthorized)
 			return
 		}
-		user, err := models.LoadUser(r.Context(), mw.db, session.Nickname())
+		user, err := models.LoadUser(r.Context(), mw.db, session.Nickname(), nil)
 		if err != nil {
 			slog.ErrorContext(r.Context(), "loading user failed", "error", err)
 			http.Error(w, "loading user failed", http.StatusInternalServerError)

@@ -138,7 +138,7 @@ func (c *Controller) userCreateStore(w http.ResponseWriter, r *http.Request) {
 func (c *Controller) userEdit(w http.ResponseWriter, r *http.Request) {
 	nickname := r.FormValue("nickname")
 	ctx := r.Context()
-	user, err := models.LoadUser(ctx, c.db, nickname)
+	user, err := models.LoadUser(ctx, c.db, nickname, nil)
 	if !check(w, r, err) {
 		return
 	}
@@ -167,7 +167,7 @@ func (c *Controller) userEdit(w http.ResponseWriter, r *http.Request) {
 func (c *Controller) userEditStore(w http.ResponseWriter, r *http.Request) {
 	nickname := r.FormValue("nickname")
 	ctx := r.Context()
-	user, err := models.LoadUser(ctx, c.db, nickname)
+	user, err := models.LoadUser(ctx, c.db, nickname, nil)
 	if !check(w, r, err) {
 		return
 	}
@@ -273,7 +273,7 @@ func (c *Controller) userCommitteesStore(w http.ResponseWriter, r *http.Request)
 		ctx, c.db, nickname, maps.Values(memberships))) {
 		return
 	}
-	user, err := models.LoadUser(ctx, c.db, nickname)
+	user, err := models.LoadUser(ctx, c.db, nickname, nil)
 	if !check(w, r, err) {
 		return
 	}
