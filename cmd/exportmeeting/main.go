@@ -11,6 +11,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"encoding/csv"
 	"flag"
 	"fmt"
@@ -54,8 +55,8 @@ func run(meetingCSV, committee, databaseURL string) error {
 
 	meetings := []meeting{}
 
-	loadAttendeesSQL := `SELECT start_time, group_concat(nickname) FROM attendees ` +
-		`JOIN meetings m on attendees.meetings_id = m.id `
+	loadAttendeesSQL := `SELECT m.start_time, group_concat(nickname) FROM meetings ` +
+		`LEFT JOIN attendees a ON m.id = a.meetings_id `
 
 	queryArgs := []any{}
 	if committee != "" {
@@ -63,18 +64,22 @@ func run(meetingCSV, committee, databaseURL string) error {
 		queryArgs = append(queryArgs, committee)
 	}
 	loadAttendeesSQL += `GROUP BY start_time ORDER BY start_time`
-	rows, err := db.DB.QueryContext(ctx, loadAttendeesSQL, queryArgs...)
+	rows, err := db.QueryContext(ctx, loadAttendeesSQL, queryArgs...)
 	if err != nil {
 		return fmt.Errorf("querying attendees failed: %w", err)
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var m meeting
-		var attendees string
-		if err := rows.Scan(&m.startTime, &attendees); err != nil {
+		var attendeesSQL sql.NullString
+		if err := rows.Scan(&m.startTime, &attendeesSQL); err != nil {
 			return fmt.Errorf("scanning attendees failed: %w", err)
 		}
-		m.attendees = strings.Split(attendees, ",")
+		if attendeesSQL.Valid {
+			m.attendees = strings.Split(attendeesSQL.String, ",")
+		} else {
+			m.attendees = []string{} // Initialize as an empty slice if no attendees
+		}
 		meetings = append(meetings, m)
 	}
 
