@@ -44,6 +44,8 @@ func run(cfg *config.Config) error {
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGKILL, syscall.SIGTERM)
 	defer stop()
 
+	slog.InfoContext(ctx, "Starting OQC", "version", version.SemVersion)
+
 	db, err := database.NewDatabase(ctx, &cfg.Database)
 	switch {
 	case errors.Is(err, database.ErrTerminateMigration):
@@ -62,7 +64,7 @@ func run(cfg *config.Config) error {
 	}
 
 	addr := cfg.Web.Addr()
-	slog.Info("Starting web server", "address", addr)
+	slog.InfoContext(ctx, "Starting web server", "address", addr)
 	srv := &http.Server{
 		Addr:    addr,
 		Handler: ctrl.Bind(),

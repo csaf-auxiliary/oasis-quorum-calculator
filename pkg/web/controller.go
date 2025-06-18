@@ -23,6 +23,7 @@ import (
 	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/database"
 	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/misc"
 	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/models"
+	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/version"
 )
 
 // Controller binds the endpoints to the internal logic.
@@ -61,6 +62,7 @@ var templateFuncs = template.FuncMap{
 	"DatetimeHoursMinutes":      datetimeHoursMinutes,
 	"HoursMinutes":              hoursMinutes,
 	"Now":                       func() time.Time { return time.Now().UTC() },
+	"SemVersion":                func() string { return version.SemVersion },
 }
 
 // NewController returns a new Controller.

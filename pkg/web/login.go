@@ -17,7 +17,7 @@ import (
 )
 
 func (c *Controller) authFailed(w http.ResponseWriter, r *http.Request, nickname, msg string) {
-	data := map[string]string{
+	data := templateData{
 		"nickname": nickname,
 		"error":    msg,
 	}
