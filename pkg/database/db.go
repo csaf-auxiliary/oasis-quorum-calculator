@@ -82,10 +82,8 @@ func NewDatabase(ctx context.Context, cfg *config.Database) (*Database, error) {
 
 	database := &Database{DB: db}
 
-	if cfg.Migrate {
-		if err := database.applyMigrations(ctx, cfg, migs); err != nil {
-			return nil, err
-		}
+	if err := database.applyMigrations(ctx, cfg, migs); err != nil {
+		return nil, err
 	}
 
 	if cfg.Migrate && cfg.TerminateAfterMigration {
