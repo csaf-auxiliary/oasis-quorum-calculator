@@ -106,6 +106,9 @@ func (db *Database) applyMigrations(ctx context.Context, cfg *config.Database, m
 		if mig.version <= version {
 			continue
 		}
+		if !cfg.Migrate {
+			return errors.New("needing migrations but migration flag is not set")
+		}
 		script, err := mig.load(cfg, funcMap)
 		if err != nil {
 			return fmt.Errorf("loading migration %q failed: %w", mig.path, err)
