@@ -129,6 +129,7 @@ func main() {
 	cfg, err := config.Load(cfgFile)
 	check(err)
 	check(cfg.Log.Config())
+	slog.Info("Starting OQC", "version", version.SemVersion)
 	cfg.PresetDefaults()
 	check(run(cfg))
 }
