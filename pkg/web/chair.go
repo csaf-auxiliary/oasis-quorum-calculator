@@ -56,7 +56,7 @@ func (c *Controller) absentOverview(w http.ResponseWriter, r *http.Request) {
 	if !check(w, r, err) {
 		return
 	}
-	members, err := models.LoadCommitteeUsers(ctx, c.db, committeeID)
+	members, err := models.LoadCommitteeUsers(ctx, c.db, committeeID, nil)
 	if !check(w, r, err) {
 		return
 	}
@@ -415,7 +415,7 @@ func (c *Controller) meetingStatusError(
 		c.chair(w, r)
 		return
 	}
-	members, err := models.LoadCommitteeUsers(ctx, c.db, committeeID)
+	members, err := models.LoadCommitteeUsers(ctx, c.db, committeeID, &meeting.StartTime)
 	if !check(w, r, err) {
 		return
 	}
@@ -532,7 +532,7 @@ func (c *Controller) meetingAttendStore(w http.ResponseWriter, r *http.Request) 
 		c.meetingStatus(w, r)
 		return
 	}
-	users, err := models.LoadCommitteeUsers(ctx, c.db, committeeID)
+	users, err := models.LoadCommitteeUsers(ctx, c.db, committeeID, &meeting.StartTime)
 	if !check(w, r, err) {
 		return
 	}

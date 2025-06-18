@@ -272,13 +272,13 @@ func (uh UserHistory) Status(when time.Time) MemberStatus {
 }
 
 // LoadUser loads a user with a given nickname from the database.
-func LoadUser(ctx context.Context, db *database.Database, nickname string) (*User, error) {
+func LoadUser(ctx context.Context, db *database.Database, nickname string, before *time.Time) (*User, error) {
 	tx, err := db.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
-	return loadUserTx(ctx, tx, nickname)
+	return loadUserTx(ctx, tx, nickname, before)
 }
 
 func loadBasicUserTx(
@@ -309,6 +309,7 @@ func loadUserTx(
 	ctx context.Context,
 	tx *sql.Tx,
 	nickname string,
+	before *time.Time,
 ) (*User, error) {
 	user, err := loadBasicUserTx(ctx, tx, nickname)
 	if err != nil || user == nil {
@@ -357,17 +358,24 @@ func loadUserTx(
 
 	// Collect member status in comittees.
 	if len(user.Memberships) > 0 {
-		const memberStatusSQL = `SELECT status FROM member_history ` +
-			`WHERE nickname = ? AND committees_id = ? ` +
-			`ORDER BY unixepoch(since) DESC LIMIT 1`
+		memberStatusSQL := `SELECT status FROM member_history ` +
+			`WHERE nickname = ? AND committees_id = ? `
+		if before != nil {
+			memberStatusSQL += `AND unixepoch(since) < unixepoch(?) `
+		}
+		memberStatusSQL += `ORDER BY unixepoch(since) DESC LIMIT 1`
 		stmt, err := tx.PrepareContext(ctx, memberStatusSQL)
 		if err != nil {
 			return nil, fmt.Errorf("preparing status failed: %w", err)
 		}
 		defer stmt.Close()
 		for _, ms := range user.Memberships {
+			args := []any{user.Nickname, ms.Committee.ID}
+			if before != nil {
+				args = append(args, before)
+			}
 			switch err := stmt.QueryRowContext(
-				ctx, user.Nickname, ms.Committee.ID).Scan(&ms.Status); {
+				ctx, args...).Scan(&ms.Status); {
 			case errors.Is(err, sql.ErrNoRows):
 				// default to member,
 				ms.Status = Member
@@ -563,13 +571,14 @@ func LoadCommitteeUsers(
 	ctx context.Context,
 	db *database.Database,
 	committeeID int64,
+	before *time.Time,
 ) ([]*User, error) {
 	tx, err := db.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
-	return LoadCommitteeUsersTx(ctx, tx, committeeID)
+	return LoadCommitteeUsersTx(ctx, tx, committeeID, before)
 }
 
 // LoadCommitteeUsersTx loads all users of a committee.
@@ -577,6 +586,7 @@ func LoadCommitteeUsersTx(
 	ctx context.Context,
 	tx *sql.Tx,
 	committeeID int64,
+	before *time.Time,
 ) ([]*User, error) {
 	// Load nicknames.
 	const committeeUsersSQL = `SELECT distinct(nickname) FROM committee_roles ` +
@@ -604,7 +614,7 @@ func LoadCommitteeUsersTx(
 	// Load users.
 	users := make([]*User, 0, len(nicknames))
 	for _, nickname := range nicknames {
-		user, err := loadUserTx(ctx, tx, nickname)
+		user, err := loadUserTx(ctx, tx, nickname, before)
 		if err != nil {
 			return nil, fmt.Errorf("loading user failed: %w", err)
 		}

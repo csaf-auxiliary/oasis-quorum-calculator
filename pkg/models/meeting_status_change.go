@@ -93,7 +93,7 @@ func ChangeMeetingStatus(
 		if err != nil {
 			return err
 		}
-		users, err := LoadCommitteeUsersTx(ctx, tx, committeeID)
+		users, err := LoadCommitteeUsersTx(ctx, tx, committeeID, nil)
 		if err != nil {
 			return err
 		}

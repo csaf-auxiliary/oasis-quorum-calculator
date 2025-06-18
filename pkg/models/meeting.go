@@ -756,7 +756,7 @@ func LoadMeetingsOverview(
 		var voting, attending int
 		for nickname := range neededUsers {
 			history := histories[nickname]
-			if history.Status(meeting.StopTime) == Voting {
+			if history.Status(meeting.StartTime) == Voting {
 				voting++
 				if d.Attendees.Attended(nickname) {
 					attending++
