@@ -62,7 +62,7 @@ var templateFuncs = template.FuncMap{
 	"DatetimeHoursMinutes":      datetimeHoursMinutes,
 	"HoursMinutes":              hoursMinutes,
 	"Now":                       func() time.Time { return time.Now().UTC() },
-	"SemVer":                    func() string { return version.SemVersion },
+	"SemVersion":                func() string { return version.SemVersion },
 }
 
 // NewController returns a new Controller.
