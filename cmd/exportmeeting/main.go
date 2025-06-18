@@ -13,10 +13,12 @@ import (
 	"context"
 	"database/sql"
 	"encoding/csv"
+	"errors"
 	"flag"
 	"fmt"
 	"log"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -40,7 +42,7 @@ func sqlite3URL(url string) string {
 
 type meeting struct {
 	startTime time.Time
-	attendees []string
+	attendees []int
 }
 
 func run(meetingCSV, committee, databaseURL string) error {
@@ -68,6 +70,9 @@ func run(meetingCSV, committee, databaseURL string) error {
 	if err != nil {
 		return fmt.Errorf("querying attendees failed: %w", err)
 	}
+
+	var users []string
+
 	defer rows.Close()
 	for rows.Next() {
 		var m meeting
@@ -76,41 +81,40 @@ func run(meetingCSV, committee, databaseURL string) error {
 			return fmt.Errorf("scanning attendees failed: %w", err)
 		}
 		if attendeesSQL.Valid {
-			m.attendees = strings.Split(attendeesSQL.String, ",")
-		} else {
-			m.attendees = []string{} // Initialize as an empty slice if no attendees
+			for att := range strings.SplitSeq(attendeesSQL.String, ",") {
+				idx := slices.Index(users, att)
+				if idx == -1 {
+					idx = len(users)
+					users = append(users, att)
+				}
+				m.attendees = append(m.attendees, idx)
+			}
 		}
 		meetings = append(meetings, m)
 	}
 
 	// This slice will hold the first row of the CSV (start times)
 	var startTimesRow []string
-	// This will keep track of the maximum number of attendees in any single meeting
-	// to determine how many "attendee" rows we need.
-	maxAttendees := 0
 
 	// Populate startTimesRow and find maxAttendees
 	for _, m := range meetings {
 		startTimesRow = append(startTimesRow, m.startTime.Format("2006-01-02"))
-		if len(m.attendees) > maxAttendees {
-			maxAttendees = len(m.attendees)
-		}
 	}
 
 	// This 2D slice will hold the attendee data,
 	// where attendeeMatrix[i] is a row containing the (i+1)-th attendee from each meeting.
 	// We pre-allocate it based on maxAttendees for rows and number of meetings for columns.
-	attendeeMatrix := make([][]string, maxAttendees)
+	attendeeMatrix := make([][]string, len(users))
 	for i := range attendeeMatrix {
 		attendeeMatrix[i] = make([]string, len(meetings))
 	}
 
 	// Populate the attendeeMatrix
-	for meetingIndex, m := range meetings {
-		for attendeeIndex, attendee := range m.attendees {
-			// Place each attendee into the correct position in the matrix.
-			// attendeeMatrix[row_for_attendee_position][column_for_meeting_index]
-			attendeeMatrix[attendeeIndex][meetingIndex] = attendee
+	for mIdx, m := range meetings {
+		for i := range users {
+			if slices.Index(m.attendees, i) >= 0 {
+				attendeeMatrix[i][mIdx] = users[i]
+			}
 		}
 	}
 
@@ -118,13 +122,10 @@ func run(meetingCSV, committee, databaseURL string) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
 
 	writer := csv.NewWriter(file)
 
-	if err := writer.Write(startTimesRow); err != nil {
-		return err
-	}
+	writer.Write(startTimesRow)
 
 	for _, row := range attendeeMatrix {
 		if err := writer.Write(row); err != nil {
@@ -133,12 +134,8 @@ func run(meetingCSV, committee, databaseURL string) error {
 	}
 
 	writer.Flush()
-
-	if err := writer.Error(); err != nil {
-		return err
-	}
-
-	return nil
+	err = writer.Error()
+	return errors.Join(err, file.Close())
 }
 
 func main() {
