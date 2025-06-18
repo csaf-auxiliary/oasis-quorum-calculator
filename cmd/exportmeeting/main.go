@@ -111,9 +111,9 @@ func run(meetingCSV, committee, databaseURL string) error {
 
 	// Populate the attendeeMatrix
 	for mIdx, m := range meetings {
-		for i := range users {
+		for i, user := range users {
 			if slices.Index(m.attendees, i) >= 0 {
-				attendeeMatrix[i][mIdx] = users[i]
+				attendeeMatrix[i][mIdx] = user
 			}
 		}
 	}
