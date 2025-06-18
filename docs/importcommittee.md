@@ -34,9 +34,12 @@ The CSV file should be structured as follows:
     - Header is da date in `YYYY-MM-DD` format.
     - Each subsequent cell lists the name of a participant if they attended the meeting.
 
-Hint: Libreoffice can sort columns: Select them, let it extend
-the selection and use the menu entry
-_Data_ -> _Sort_ and select _Direction Left to Right (sort columns)_.
+Hint: Libreoffice can sort columns:
+
+ 1. select the column with the meeting dates
+ 2. use the menu entry _Data_ -> _Sort_
+ 3. let it expand the selection
+ 4. select _Direction Left to Right (sort columns)_ (and execute)
 
 ## Command-Line Usage
 
