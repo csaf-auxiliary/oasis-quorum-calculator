@@ -14,18 +14,23 @@ import (
 
 	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/auth"
 	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/models"
+	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/version"
 )
 
 func (c *Controller) authFailed(w http.ResponseWriter, r *http.Request, nickname, msg string) {
 	data := map[string]string{
-		"nickname": nickname,
-		"error":    msg,
+		"nickname":   nickname,
+		"error":      msg,
+		"SemVersion": version.SemVersion,
 	}
 	check(w, r, c.tmpls.ExecuteTemplate(w, "auth.tmpl", data))
 }
 
 func (c *Controller) auth(w http.ResponseWriter, r *http.Request) {
-	check(w, r, c.tmpls.ExecuteTemplate(w, "auth.tmpl", nil))
+	data := templateData{
+		"SemVersion": version.SemVersion,
+	}
+	check(w, r, c.tmpls.ExecuteTemplate(w, "auth.tmpl", data))
 }
 
 func (c *Controller) login(w http.ResponseWriter, r *http.Request) {
