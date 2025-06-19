@@ -57,7 +57,7 @@ func sqlQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
 }
 
-func createFuncMap() template.FuncMap {
+func createFuncMap(ctx context.Context) template.FuncMap {
 	passwords := map[string]string{}
 	return template.FuncMap{
 		"sqlQuote": sqlQuote,
@@ -68,7 +68,7 @@ func createFuncMap() template.FuncMap {
 			password := misc.RandomString(12)
 			encoded := misc.EncodePassword(password)
 			passwords[user] = encoded
-			slog.Info("Generated new password. Note it down to log in",
+			slog.InfoContext(ctx, "Generated new password. Note it down to log in",
 				"user", user,
 				"password", password)
 			return encoded
@@ -100,11 +100,14 @@ func (db *Database) applyMigrations(ctx context.Context, cfg *config.Database, m
 		return fmt.Errorf("current migration version not found: %w", err)
 	}
 	slog.DebugContext(ctx, "current migration version", "version", version)
-	funcMap := createFuncMap()
+	funcMap := createFuncMap(ctx)
 	for i := range migs {
 		mig := &migs[i]
 		if mig.version <= version {
 			continue
+		}
+		if !cfg.Migrate {
+			return errors.New("needing migrations but migration flag is not set")
 		}
 		script, err := mig.load(cfg, funcMap)
 		if err != nil {
@@ -138,7 +141,7 @@ func (db *Database) applyMigrations(ctx context.Context, cfg *config.Database, m
 
 func createDatabase(ctx context.Context, cfg *config.Database, db *sqlx.DB, migs []migration) error {
 	slog.InfoContext(ctx, "Creating database", "url", cfg.DatabaseURL)
-	script, err := migs[0].load(cfg, createFuncMap())
+	script, err := migs[0].load(cfg, createFuncMap(ctx))
 	if err != nil {
 		return err
 	}
