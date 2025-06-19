@@ -103,7 +103,6 @@ func run(meetingCSV, committee, databaseURL string) error {
 
 	// This 2D slice will hold the attendee data,
 	// where attendeeMatrix[i] is a row containing the (i+1)-th attendee from each meeting.
-	// We pre-allocate it based on maxAttendees for rows and number of meetings for columns.
 	attendeeMatrix := make([][]string, len(users))
 	for i := range attendeeMatrix {
 		attendeeMatrix[i] = make([]string, len(meetings))
@@ -128,9 +127,7 @@ func run(meetingCSV, committee, databaseURL string) error {
 	writer.Write(startTimesRow)
 
 	for _, row := range attendeeMatrix {
-		if err := writer.Write(row); err != nil {
-			return err
-		}
+		writer.Write(row)
 	}
 
 	writer.Flush()
