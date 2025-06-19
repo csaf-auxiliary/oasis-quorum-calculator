@@ -284,13 +284,22 @@ func run(committee, csv, databaseURL string) error {
 			return err
 		}
 
-		misc.Attribute(misc.Values(m.attendees), true)
-
-		if err = models.Attend(ctx, db, meeting.ID, misc.Attribute(misc.Values(m.attendees...), true), meeting.StartTime); err != nil {
+		if err = models.Attend(
+			ctx, db,
+			meeting.ID,
+			misc.Attribute(slices.Values(m.attendees), true),
+			meeting.StartTime,
+		); err != nil {
 			return err
 		}
 
-		if err = models.ChangeMeetingStatus(ctx, db, meeting.ID, committeeModel.ID, models.MeetingConcluded, meeting.StopTime); err != nil {
+		if err = models.ChangeMeetingStatus(
+			ctx, db,
+			meeting.ID,
+			committeeModel.ID,
+			models.MeetingConcluded,
+			meeting.StopTime,
+		); err != nil {
 			return err
 		}
 	}
