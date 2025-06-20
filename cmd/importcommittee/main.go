@@ -42,8 +42,9 @@ type meeting struct {
 }
 
 type data struct {
-	users    []*user
-	meetings []*meeting
+	users       []*user
+	meetings    []*meeting
+	appearances map[string]time.Time
 }
 
 func fuzzyMatchUser(name string) func(*models.User) bool {
@@ -59,9 +60,54 @@ func fuzzyMatchUser(name string) func(*models.User) bool {
 	}
 }
 
-func extractMeetings(records [][]string) ([]*meeting, error) {
-	var meetings []*meeting
+func (d *data) replaceNamesByNicknames(users []*models.User) error {
 
+	replace := func(name *string) error {
+		// Check if username exists
+		idx := slices.IndexFunc(users, func(u *models.User) bool {
+			return u.Nickname == *name
+		})
+		// Username not found trying firstname and lastname
+		if idx < 0 {
+			if idx = slices.IndexFunc(users, fuzzyMatchUser(*name)); idx < 0 {
+				return fmt.Errorf("no nickname found for user %q", *name)
+			}
+			// Set username if a good match was found
+			*name = users[idx].Nickname
+		}
+		return nil
+	}
+
+	for _, user := range d.users {
+		if err := replace(&user.name); err != nil {
+			return err
+		}
+	}
+
+	for _, m := range d.meetings {
+		for attendeeIdx := range m.attendees {
+			if err := replace(&m.attendees[attendeeIdx]); err != nil {
+				return err
+			}
+		}
+	}
+
+	appearances := make(map[string]time.Time, len(d.appearances))
+	for name, first := range d.appearances {
+		if err := replace(&name); err != nil {
+			return err
+		}
+		appearances[name] = first
+	}
+	d.appearances = appearances
+	return nil
+}
+
+func extractMeetings(records [][]string) (
+	[]*meeting,
+	map[string]time.Time,
+	error,
+) {
 	// Transpose rows to columns
 	numCols := len(records[0])
 	columns := make([][]string, numCols)
@@ -75,9 +121,13 @@ func extractMeetings(records [][]string) ([]*meeting, error) {
 
 	// Meeting columns start after the initial user status list
 	if len(columns) <= 3 {
-		return nil, errors.New("not enough columns")
+		return nil, nil, errors.New("not enough columns")
 	}
 	columns = columns[3:]
+	var meetings []*meeting
+
+	// When does a user first appear in the committee?
+	appearances := map[string]time.Time{}
 
 	for _, m := range columns {
 		if len(m) < 1 || m[0] == "" {
@@ -85,14 +135,18 @@ func extractMeetings(records [][]string) ([]*meeting, error) {
 		}
 		t, err := time.Parse("2006-01-02", m[0])
 		if err != nil {
-			return nil, err
+			return nil, nil, err
 		}
 
 		attendees := []string{}
 		for _, a := range m[1:] {
-			if a != "" {
-				attendees = append(attendees, a)
+			if a == "" {
+				continue
 			}
+			if first, ok := appearances[a]; !ok || first.After(t) {
+				appearances[a] = t
+			}
+			attendees = append(attendees, a)
 		}
 		meetings = append(meetings, &meeting{
 			startTime: t,
@@ -104,7 +158,7 @@ func extractMeetings(records [][]string) ([]*meeting, error) {
 	slices.SortFunc(meetings, func(a, b *meeting) int {
 		return a.startTime.Compare(b.startTime)
 	})
-	return meetings, nil
+	return meetings, appearances, nil
 }
 
 func extractUsers(records [][]string) ([]*user, error) {
@@ -181,14 +235,15 @@ func loadCSV(filename string) (*data, error) {
 		return nil, fmt.Errorf("extracting users failed: %w", err)
 	}
 
-	meetings, err := extractMeetings(records)
+	meetings, appearances, err := extractMeetings(records)
 	if err != nil {
 		return nil, fmt.Errorf("extracting meetings failed: %w", err)
 	}
 
 	return &data{
-		users:    users,
-		meetings: meetings,
+		users:       users,
+		meetings:    meetings,
+		appearances: appearances,
 	}, nil
 }
 
@@ -200,6 +255,15 @@ func deleteOldMeetings(
 	const deleteSQL = `DELETE FROM meetings WHERE committees_id = ?`
 	_, err := db.ExecContext(ctx, deleteSQL, committeeID)
 	return err
+}
+
+func findCommittee(committees []*models.Committee, name string) *models.Committee {
+	if idx := slices.IndexFunc(committees, func(c *models.Committee) bool {
+		return c.Name == name
+	}); idx >= 0 {
+		return committees[idx]
+	}
+	return nil
 }
 
 func run(committee, csv, databaseURL string) error {
@@ -223,12 +287,7 @@ func run(committee, csv, databaseURL string) error {
 		return err
 	}
 
-	var committeeModel *models.Committee
-	for _, c := range committees {
-		if c.Name == committee {
-			committeeModel = c
-		}
-	}
+	committeeModel := findCommittee(committees, committee)
 	if committeeModel == nil {
 		return fmt.Errorf("committee %q not found", committee)
 	}
@@ -240,36 +299,10 @@ func run(committee, csv, databaseURL string) error {
 		return fmt.Errorf("loading users failed: %w", err)
 	}
 
-	for _, user := range table.users {
-		// Check if username exists
-		idx := slices.IndexFunc(users, func(u *models.User) bool {
-			return u.Nickname == user.name
-		})
-		// Username not found trying firstname and lastname
-		if idx < 0 {
-			if idx = slices.IndexFunc(users, fuzzyMatchUser(user.name)); idx < 0 {
-				return fmt.Errorf("no nickname found for user %q", user.name)
-			}
-			// Set username if a good match was found
-			user.name = users[idx].Nickname
-		}
-	}
-
-	for _, m := range table.meetings {
-		for attendeeIdx, attendee := range m.attendees {
-			// Check if username exists
-			idx := slices.IndexFunc(users, func(u *models.User) bool {
-				return u.Nickname == attendee
-			})
-			// Username not found trying firstname and lastname
-			if idx < 0 {
-				if idx = slices.IndexFunc(users, fuzzyMatchUser(attendee)); idx < 0 {
-					return fmt.Errorf("no nickname found for attendee %q", attendee)
-				}
-				// Set username if a good match was found
-				m.attendees[attendeeIdx] = users[idx].Nickname
-			}
-		}
+	// The nickname is the primary key to the database user,
+	// so try to find it by looking it up in the loaded users and replace it.
+	if err := table.replaceNamesByNicknames(users); err != nil {
+		return err
 	}
 
 	for _, user := range table.users {
