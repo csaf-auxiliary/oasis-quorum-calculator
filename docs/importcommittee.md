@@ -18,13 +18,14 @@ historical meeting data.
 
 ### CSV Format
 
-The CSV file should be structured as follows:
+The CSV file must be structured as follows:
 
-| Status    | Role          | Name    | 2023-01-01 | 2023-02-01 | ... |
-|-----------|---------------|---------|------------|------------|-----|
-| Voter     | Voting Member | alice   | alice      | alice      | ... |
-| Non-voter | Member        | bob     |            | bob        | ... |
-| Voter     | Chair         | charlie | charlie    |            | ... |
+| Status    | Role          | Name  | 2023-01-01 | 2023-02-01 | 2021-04-04 | |
+|-----------|---------------|-------|------------|------------|------------|-|
+|           |               |       |            | (informational) |       |.|
+| Voter     | Voting Member | alice | alice      | alice      |            |.|
+| Non-voter | Member        | bob   |            | bob        | bob        |.|
+| Voter     | Chair         | C B   | C B (Leave of absence)| | C B        |.|
 
 - The **first three columns** represent:
     - **Initial status**: `Voter` or `Non-voter`
@@ -33,6 +34,11 @@ The CSV file should be structured as follows:
 - **Remaining columns** represents meetings:
     - Header is da date in `YYYY-MM-DD` format.
     - Each subsequent cell lists the name of a participant if they attended the meeting.
+    - If a name is followed by `(Leave of absence)`, the person will
+      be considered on scheduled leave for the meeting.
+- If the **first row** contains an `(informational)`, the row will be used
+  for marking informal gatherings.
+
 
 ## Command-Line Usage
 
