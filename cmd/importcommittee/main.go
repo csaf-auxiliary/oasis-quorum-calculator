@@ -22,6 +22,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/jmoiron/sqlx"
+
 	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/config"
 	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/database"
 	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/misc"
@@ -190,6 +192,16 @@ func loadCSV(filename string) (*data, error) {
 	}, nil
 }
 
+func deleteOldMeetings(
+	ctx context.Context,
+	db *sqlx.DB,
+	committeeID int64,
+) error {
+	const deleteSQL = `DELETE FROM meetings WHERE committees_id = ?`
+	_, err := db.ExecContext(ctx, deleteSQL, committeeID)
+	return err
+}
+
 func run(committee, csv, databaseURL string) error {
 	ctx := context.Background()
 
@@ -269,6 +281,10 @@ func run(committee, csv, databaseURL string) error {
 		if err := models.UpdateMemberships(ctx, db, user.name, misc.Values(ms)); err != nil {
 			return err
 		}
+	}
+
+	if err := deleteOldMeetings(ctx, db.DB, committeeModel.ID); err != nil {
+		return fmt.Errorf("deleting old meetings failed: %w", err)
 	}
 
 	for _, m := range table.meetings {
