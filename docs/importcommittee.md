@@ -18,13 +18,13 @@ historical meeting data.
 
 ### CSV Format
 
-The CSV file should be structured as follows:
+The CSV file must be structured as follows:
 
-| Status    | Role          | Name    | 2023-01-01 | 2023-02-01 | ... |
-|-----------|---------------|---------|------------|------------|-----|
-| Voter     | Voting Member | alice   | alice      | alice      | ... |
-| Non-voter | Member        | bob     |            | bob        | ... |
-| Voter     | Chair         | charlie | charlie    |            | ... |
+| Status    | Role          | Name  | 2023-01-01 | 2023-02-01 | 2021-04-04 | |
+|-----------|---------------|-------|------------|------------|------------|-|
+| Voter     | Voting Member | alice | alice      | alice      |            |.|
+| Non-voter | Member        | bob   |            | bob        | bob        |.|
+| Voter     | Chair         | C B   | C B        |            | C B        |.|
 
 - The **first three columns** represent:
     - **Initial status**: `Voter` or `Non-voter`
@@ -33,13 +33,6 @@ The CSV file should be structured as follows:
 - **Remaining columns** represents meetings:
     - Header is da date in `YYYY-MM-DD` format.
     - Each subsequent cell lists the name of a participant if they attended the meeting.
-
-Hint: Libreoffice can sort columns:
-
- 1. select the column with the meeting dates
- 2. use the menu entry _Data_ -> _Sort_
- 3. let it expand the selection
- 4. select _Direction Left to Right (sort columns)_ (and execute)
 
 ## Command-Line Usage
 
