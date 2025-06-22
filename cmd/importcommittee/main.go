@@ -87,6 +87,32 @@ func (d *data) storeAbsences(
 	return nil
 }
 
+func (d *data) storeNewMembers(
+	ctx context.Context,
+	db *database.Database,
+	startTime time.Time,
+	attendees []string,
+	committee *models.Committee,
+) error {
+	for _, att := range attendees {
+		if d.appearances[att].Equal(startTime) {
+			user := d.findUser(att)
+			if user == nil {
+				return fmt.Errorf("could not find appearing user: %q", att)
+			}
+			ms := &models.Membership{
+				Committee: committee,
+				Status:    user.initialStatus,
+				Roles:     []models.Role{user.initialRole},
+			}
+			if err := models.UpdateMemberships(ctx, db, user.name, misc.Values(ms)); err != nil {
+				return fmt.Errorf("updating membership failed: %w", err)
+			}
+		}
+	}
+	return nil
+}
+
 func fuzzyMatchUser(name string) func(*models.User) bool {
 	username := strings.ToLower(name)
 	return func(user *models.User) bool {
@@ -402,29 +428,15 @@ func run(committee, csv, databaseURL string) error {
 	}
 
 	for _, m := range table.meetings {
-		// We add users right before their first meeting to the committee.
-		for _, att := range m.attendees {
-			if table.appearances[att].Equal(m.startTime) {
-				user := table.findUser(att)
-				if user == nil {
-					return fmt.Errorf("could not find appearing user: %q", att)
-				}
-				ms := &models.Membership{
-					Committee: committeeModel,
-					Status:    user.initialStatus,
-					Roles:     []models.Role{user.initialRole},
-				}
-				if err := models.UpdateMemberships(ctx, db, user.name, misc.Values(ms)); err != nil {
-					return err
-				}
-			}
-		}
-
 		var (
 			from = m.startTime
 			to   = m.startTime.Add(1 * time.Hour) // TODO: Don't guess stop time
 		)
-
+		// We add users right before their first meeting to the committee.
+		if err := table.storeNewMembers(ctx, db, from, m.attendees, committeeModel); err != nil {
+			return err
+		}
+		// Store the leaves of absence.
 		if err := table.storeAbsences(ctx, db.DB, from, to, committeeModel.ID); err != nil {
 			return err
 		}
