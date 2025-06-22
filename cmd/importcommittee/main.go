@@ -456,7 +456,7 @@ func run(committee, csv, databaseURL string) error {
 			ctx, db,
 			meeting.ID,
 			misc.Attribute(slices.Values(m.attendees), true),
-			meeting.StartTime,
+			from,
 		); err != nil {
 			return err
 		}
@@ -466,7 +466,7 @@ func run(committee, csv, databaseURL string) error {
 			meeting.ID,
 			committeeModel.ID,
 			models.MeetingConcluded,
-			meeting.StopTime,
+			to,
 		); err != nil {
 			return err
 		}
