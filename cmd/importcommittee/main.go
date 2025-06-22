@@ -49,6 +49,15 @@ type data struct {
 	absences    map[string][]time.Time
 }
 
+func (d *data) findUser(name string) *user {
+	if idx := slices.IndexFunc(d.users, func(u *user) bool {
+		return u.name == name
+	}); idx >= 0 {
+		return d.users[idx]
+	}
+	return nil
+}
+
 func fuzzyMatchUser(name string) func(*models.User) bool {
 	username := strings.ToLower(name)
 	return func(user *models.User) bool {
@@ -283,6 +292,16 @@ func deleteOldMeetings(
 	return err
 }
 
+func deleteMembership(
+	ctx context.Context,
+	db *sqlx.DB,
+	committeeID int64,
+) error {
+	const deleteSQL = `DELETE FROM member_history WHERE committee_id = ?`
+	_, err := db.ExecContext(ctx, deleteSQL, committeeID)
+	return err
+}
+
 func findCommittee(committees []*models.Committee, name string) *models.Committee {
 	if idx := slices.IndexFunc(committees, func(c *models.Committee) bool {
 		return c.Name == name
@@ -331,22 +350,33 @@ func run(committee, csv, databaseURL string) error {
 		return err
 	}
 
-	for _, user := range table.users {
-		ms := &models.Membership{
-			Committee: committeeModel,
-			Status:    user.initialStatus,
-			Roles:     []models.Role{user.initialRole},
-		}
-		if err := models.UpdateMemberships(ctx, db, user.name, misc.Values(ms)); err != nil {
-			return err
-		}
-	}
-
 	if err := deleteOldMeetings(ctx, db.DB, committeeModel.ID); err != nil {
 		return fmt.Errorf("deleting old meetings failed: %w", err)
 	}
 
+	if err := deleteMembership(ctx, db.DB, committeeModel.ID); err != nil {
+		return fmt.Errorf("deleting membership failed: %w", err)
+	}
+
 	for _, m := range table.meetings {
+		// We add users right before their first meeting to the committee.
+		for _, att := range m.attendees {
+			if table.appearances[att].Equal(m.startTime) {
+				user := table.findUser(att)
+				if user == nil {
+					return fmt.Errorf("could not find appearing user: %q", att)
+				}
+				ms := &models.Membership{
+					Committee: committeeModel,
+					Status:    user.initialStatus,
+					Roles:     []models.Role{user.initialRole},
+				}
+				if err := models.UpdateMemberships(ctx, db, user.name, misc.Values(ms)); err != nil {
+					return err
+				}
+			}
+		}
+
 		meeting := models.Meeting{
 			CommitteeID: committeeModel.ID,
 			Gathering:   m.gathering,
