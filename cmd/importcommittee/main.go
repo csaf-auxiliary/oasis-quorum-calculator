@@ -38,6 +38,7 @@ type user struct {
 
 type meeting struct {
 	startTime time.Time
+	gathering bool
 	attendees []string
 }
 
@@ -45,6 +46,7 @@ type data struct {
 	users       []*user
 	meetings    []*meeting
 	appearances map[string]time.Time
+	absences    map[string][]time.Time
 }
 
 func fuzzyMatchUser(name string) func(*models.User) bool {
@@ -100,12 +102,22 @@ func (d *data) replaceNamesByNicknames(users []*models.User) error {
 		appearances[name] = first
 	}
 	d.appearances = appearances
+
+	absences := make(map[string][]time.Time, len(d.absences))
+	for name, abs := range d.absences {
+		if err := replace(&name); err != nil {
+			return err
+		}
+		absences[name] = abs
+	}
+	d.absences = absences
 	return nil
 }
 
 func extractMeetings(records [][]string) (
 	[]*meeting,
 	map[string]time.Time,
+	map[string][]time.Time,
 	error,
 ) {
 	// Transpose rows to columns
@@ -121,13 +133,14 @@ func extractMeetings(records [][]string) (
 
 	// Meeting columns start after the initial user status list
 	if len(columns) <= 3 {
-		return nil, nil, errors.New("not enough columns")
+		return nil, nil, nil, errors.New("not enough columns")
 	}
 	columns = columns[3:]
 	var meetings []*meeting
 
 	// When does a user first appear in the committee?
 	appearances := map[string]time.Time{}
+	absences := map[string][]time.Time{}
 
 	for _, m := range columns {
 		if len(m) < 1 || m[0] == "" {
@@ -135,12 +148,23 @@ func extractMeetings(records [][]string) (
 		}
 		t, err := time.Parse("2006-01-02", m[0])
 		if err != nil {
-			return nil, nil, err
+			return nil, nil, nil, err
 		}
 
 		attendees := []string{}
+		gathering := false
 		for _, a := range m[1:] {
+			a = strings.TrimSpace(a)
 			if a == "" {
+				continue
+			}
+			if a == "(informational)" {
+				gathering = true
+				continue
+			}
+			if strings.HasSuffix(a, "(Leave of absence)") {
+				a = strings.TrimSpace(a[:len(a)-len("(Leave of absence)")])
+				absences[a] = append(absences[a], t)
 				continue
 			}
 			if first, ok := appearances[a]; !ok || first.After(t) {
@@ -151,6 +175,7 @@ func extractMeetings(records [][]string) (
 		meetings = append(meetings, &meeting{
 			startTime: t,
 			attendees: attendees,
+			gathering: gathering,
 		})
 	}
 
@@ -158,7 +183,7 @@ func extractMeetings(records [][]string) (
 	slices.SortFunc(meetings, func(a, b *meeting) int {
 		return a.startTime.Compare(b.startTime)
 	})
-	return meetings, appearances, nil
+	return meetings, appearances, absences, nil
 }
 
 func extractUsers(records [][]string) ([]*user, error) {
@@ -235,7 +260,7 @@ func loadCSV(filename string) (*data, error) {
 		return nil, fmt.Errorf("extracting users failed: %w", err)
 	}
 
-	meetings, appearances, err := extractMeetings(records)
+	meetings, appearances, absences, err := extractMeetings(records)
 	if err != nil {
 		return nil, fmt.Errorf("extracting meetings failed: %w", err)
 	}
@@ -244,6 +269,7 @@ func loadCSV(filename string) (*data, error) {
 		users:       users,
 		meetings:    meetings,
 		appearances: appearances,
+		absences:    absences,
 	}, nil
 }
 
@@ -323,7 +349,7 @@ func run(committee, csv, databaseURL string) error {
 	for _, m := range table.meetings {
 		meeting := models.Meeting{
 			CommitteeID: committeeModel.ID,
-			Gathering:   false,
+			Gathering:   m.gathering,
 			StartTime:   m.startTime,
 			// TODO: Don't guess stop time
 			StopTime:    m.startTime.Add(1 * time.Hour),
