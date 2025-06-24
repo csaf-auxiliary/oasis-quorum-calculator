@@ -37,9 +37,11 @@ type user struct {
 }
 
 type meeting struct {
-	startTime time.Time
-	gathering bool
-	attendees []string
+	startTime   time.Time
+	stopTime    time.Time
+	description *string
+	gathering   bool
+	attendees   []string
 }
 
 type data struct {
@@ -126,6 +128,22 @@ func fuzzyMatchUser(name string) func(*models.User) bool {
 	}
 }
 
+func parseDateTime(dateTimeStr string) (time.Time, error) {
+	layouts := []string{
+		"2006-01-02 15:04:05",
+		"2006-01-02",
+	}
+
+	for _, layout := range layouts {
+		t, err := time.Parse(layout, dateTimeStr)
+		if err == nil {
+			return t, nil
+		}
+	}
+
+	return time.Time{}, fmt.Errorf("unable to parse date/time string: %q with any known format", dateTimeStr)
+}
+
 func (d *data) replaceNamesByNicknames(users []*models.User) error {
 
 	replace := func(name *string) error {
@@ -210,13 +228,15 @@ func extractMeetings(records [][]string) (
 		if len(m) < 1 || m[0] == "" {
 			continue
 		}
-		t, err := time.Parse("2006-01-02", m[0])
+		startTime, err := parseDateTime(m[0])
 		if err != nil {
 			return nil, nil, nil, err
 		}
 
 		attendees := []string{}
 		gathering := false
+		stopTime := startTime.Add(time.Hour * 1)
+		var description *string
 		for _, a := range m[1:] {
 			a = strings.TrimSpace(a)
 			if a == "" {
@@ -226,20 +246,34 @@ func extractMeetings(records [][]string) (
 				gathering = true
 				continue
 			}
+			if strings.HasPrefix(a, "Description: ") {
+				d := strings.TrimPrefix(a, "Description: ")
+				if d != "" {
+					description = &d
+				}
+			}
+			if strings.HasPrefix(a, "Stop-Time: ") {
+				stopTime, err = parseDateTime(strings.TrimPrefix(a, "Stop-Time: "))
+				if err != nil {
+					return nil, nil, nil, err
+				}
+			}
 			if strings.HasSuffix(a, "(Leave of absence)") {
 				a = strings.TrimSpace(a[:len(a)-len("(Leave of absence)")])
-				absences[a] = append(absences[a], t)
+				absences[a] = append(absences[a], startTime)
 				continue
 			}
-			if first, ok := appearances[a]; !ok || first.After(t) {
-				appearances[a] = t
+			if first, ok := appearances[a]; !ok || first.After(startTime) {
+				appearances[a] = startTime
 			}
 			attendees = append(attendees, a)
 		}
 		meetings = append(meetings, &meeting{
-			startTime: t,
-			attendees: attendees,
-			gathering: gathering,
+			startTime:   startTime,
+			stopTime:    stopTime,
+			attendees:   attendees,
+			description: description,
+			gathering:   gathering,
 		})
 	}
 
@@ -430,7 +464,7 @@ func run(committee, csv, databaseURL string) error {
 	for _, m := range table.meetings {
 		var (
 			from = m.startTime
-			to   = m.startTime.Add(1 * time.Hour) // TODO: Don't guess stop time
+			to   = m.stopTime
 		)
 		// We add users right before their first meeting to the committee.
 		if err := table.storeNewMembers(ctx, db, from, m.attendees, committeeModel); err != nil {
@@ -446,7 +480,7 @@ func run(committee, csv, databaseURL string) error {
 			Gathering:   m.gathering,
 			StartTime:   from,
 			StopTime:    to,
-			Description: nil,
+			Description: m.description,
 		}
 		if err = meeting.StoreNew(ctx, db); err != nil {
 			return err

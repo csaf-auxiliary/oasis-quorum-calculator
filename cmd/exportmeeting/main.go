@@ -41,8 +41,11 @@ func sqlite3URL(url string) string {
 }
 
 type meeting struct {
-	startTime time.Time
-	attendees []int
+	startTime   time.Time
+	stopTime    time.Time
+	gathering   bool
+	description string
+	attendees   []int
 }
 
 func run(meetingCSV, committee, databaseURL string) error {
@@ -57,7 +60,7 @@ func run(meetingCSV, committee, databaseURL string) error {
 
 	meetings := []meeting{}
 
-	loadAttendeesSQL := `SELECT m.start_time, group_concat(nickname) FROM meetings m ` +
+	loadAttendeesSQL := `SELECT m.start_time, m.stop_time, m.gathering, m.description, group_concat(nickname) FROM meetings m ` +
 		`LEFT JOIN attendees a ON m.id = a.meetings_id `
 
 	queryArgs := []any{}
@@ -77,8 +80,12 @@ func run(meetingCSV, committee, databaseURL string) error {
 	for rows.Next() {
 		var m meeting
 		var attendeesSQL sql.NullString
-		if err := rows.Scan(&m.startTime, &attendeesSQL); err != nil {
+		var description sql.NullString
+		if err := rows.Scan(&m.startTime, &m.stopTime, &m.gathering, &description, &attendeesSQL); err != nil {
 			return fmt.Errorf("scanning attendees failed: %w", err)
+		}
+		if description.Valid {
+			m.description = description.String
 		}
 		if attendeesSQL.Valid {
 			for att := range strings.SplitSeq(attendeesSQL.String, ",") {
@@ -93,12 +100,22 @@ func run(meetingCSV, committee, databaseURL string) error {
 		meetings = append(meetings, m)
 	}
 
-	// This slice will hold the first row of the CSV (start times)
+	// This will hold the meeting metadata rows of the CSV
 	var startTimesRow []string
+	var stopTimesRow []string
+	var descriptionRow []string
+	var gatheringRow []string
 
-	// Populate startTimesRow and find maxAttendees
+	// Populate meeting rows and find maxAttendees
 	for _, m := range meetings {
-		startTimesRow = append(startTimesRow, m.startTime.Format("2006-01-02"))
+		startTimesRow = append(startTimesRow, m.startTime.Format("2006-01-02 15:04"))
+		stopTimesRow = append(stopTimesRow, "Stop-Time: "+m.stopTime.Format("2006-01-02 15:04"))
+		if m.gathering {
+			gatheringRow = append(gatheringRow, "(informational)")
+		} else {
+			gatheringRow = append(gatheringRow, "")
+		}
+		descriptionRow = append(descriptionRow, "Description: "+m.description)
 	}
 
 	// This 2D slice will hold the attendee data,
@@ -126,6 +143,9 @@ func run(meetingCSV, committee, databaseURL string) error {
 	writer := csv.NewWriter(file)
 
 	writer.Write(startTimesRow)
+	writer.Write(stopTimesRow)
+	writer.Write(gatheringRow)
+	writer.Write(descriptionRow)
 
 	for _, row := range attendeeMatrix {
 		if err := writer.Write(row); err != nil {
