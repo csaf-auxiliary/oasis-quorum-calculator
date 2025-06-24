@@ -386,7 +386,7 @@ func deleteMembership(
 	db *sqlx.DB,
 	committeeID int64,
 ) error {
-	const deleteSQL = `DELETE FROM member_history WHERE committee_id = ?`
+	const deleteSQL = `DELETE FROM member_history WHERE committees_id = ?`
 	_, err := db.ExecContext(ctx, deleteSQL, committeeID)
 	return err
 }
