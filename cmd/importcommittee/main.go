@@ -378,6 +378,14 @@ func deleteOldMeetings(
 	db *sqlx.DB,
 	committeeID int64,
 ) error {
+	const deleteAttendees = `DELETE FROM attendees WHERE meetings_id IN (SELECT id FROM meetings WHERE committees_id = ?)`
+	if _, err := db.ExecContext(ctx, deleteAttendees, committeeID); err != nil {
+		return err
+	}
+	const deleteAttendeesChanges = `DELETE FROM attendees_changes WHERE meetings_id IN (SELECT id FROM meetings WHERE committees_id = ?)`
+	if _, err := db.ExecContext(ctx, deleteAttendeesChanges, committeeID); err != nil {
+		return err
+	}
 	const deleteSQL = `DELETE FROM meetings WHERE committees_id = ?`
 	_, err := db.ExecContext(ctx, deleteSQL, committeeID)
 	return err
