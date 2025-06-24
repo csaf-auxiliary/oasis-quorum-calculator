@@ -251,12 +251,14 @@ func extractMeetings(records [][]string) (
 				if d != "" {
 					description = &d
 				}
+				continue
 			}
 			if strings.HasPrefix(a, "Stop-Time: ") {
 				stopTime, err = parseDateTime(strings.TrimPrefix(a, "Stop-Time: "))
 				if err != nil {
 					return nil, nil, nil, err
 				}
+				continue
 			}
 			if strings.HasSuffix(a, "(Leave of absence)") {
 				a = strings.TrimSpace(a[:len(a)-len("(Leave of absence)")])
