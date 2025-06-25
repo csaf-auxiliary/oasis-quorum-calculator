@@ -497,6 +497,17 @@ func UpdateMemberships(
 	nickname string,
 	memberships iter.Seq[*Membership],
 ) error {
+	return UpdateMembershipsWithTimestamp(ctx, db, nickname, memberships, time.Now())
+}
+
+// UpdateMembershipsWithTimestamp updates the memberships of the user with a given nickname with the specified time.
+func UpdateMembershipsWithTimestamp(
+	ctx context.Context,
+	db *database.Database,
+	nickname string,
+	memberships iter.Seq[*Membership],
+	timestamp time.Time,
+) error {
 	tx, err := db.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return err
@@ -536,7 +547,6 @@ func UpdateMemberships(
 		defer stmt.Close()
 	}
 
-	now := time.Now().UTC()
 	for ms := range memberships {
 		for _, r := range ms.Roles {
 			if _, err := insertRoleStmt.ExecContext(
@@ -558,7 +568,7 @@ func UpdateMemberships(
 		// Only insert new one if it differs from the previous.
 		if status != ms.Status {
 			if _, err := insertStatusStmt.ExecContext(
-				ctx, nickname, ms.Committee.ID, ms.Status, now); err != nil {
+				ctx, nickname, ms.Committee.ID, ms.Status, timestamp); err != nil {
 				return fmt.Errorf("inserting status failed: %w", err)
 			}
 		}

@@ -110,7 +110,7 @@ func (d *data) storeNewMembers(
 			if !slices.Contains(ms.Roles, models.MemberRole) {
 				ms.Roles = append(ms.Roles, models.MemberRole)
 			}
-			if err := models.UpdateMemberships(ctx, db, user.name, misc.Values(ms)); err != nil {
+			if err := models.UpdateMembershipsWithTimestamp(ctx, db, user.name, misc.Values(ms), time.Time{}); err != nil {
 				return fmt.Errorf("updating membership failed: %w", err)
 			}
 		}
