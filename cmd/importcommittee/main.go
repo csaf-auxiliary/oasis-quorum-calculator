@@ -107,6 +107,9 @@ func (d *data) storeNewMembers(
 				Status:    user.initialStatus,
 				Roles:     []models.Role{user.initialRole},
 			}
+			if !slices.Contains(ms.Roles, models.MemberRole) {
+				ms.Roles = append(ms.Roles, models.MemberRole)
+			}
 			if err := models.UpdateMemberships(ctx, db, user.name, misc.Values(ms)); err != nil {
 				return fmt.Errorf("updating membership failed: %w", err)
 			}
