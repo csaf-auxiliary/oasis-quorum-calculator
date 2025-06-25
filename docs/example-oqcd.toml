@@ -7,7 +7,7 @@
 
 # Web server configuration
 #[web]
-#host = "localhost"
+#host = "localhost" # or like `"/run/oqc/oqc_{port}.sock"` a unix domain socket
 #port = 8083
 #root = "web"
 
