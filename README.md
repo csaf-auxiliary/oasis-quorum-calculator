@@ -17,9 +17,10 @@ A simple tool to calculate the quorum for OASIS TCs (definitely JavaScript-free)
 
 See [here](./docs/build.md) how to build.
 
-Create an initial config file.
+Create an initial config file and notices file:
 ```shell
 cp docs/example-oqcd.toml oqcd.toml
+cp docs/example-notices.tmpl web/templates/notices.tmpl
 ```
 
 Do the initial database migration.
