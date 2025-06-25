@@ -15,7 +15,9 @@
 A simple tool to calculate the quorum for OASIS TCs (definitely JavaScript-free)
 
 
-See [here](./docs/build.md) how to build.
+See [how to build](./docs/build.md).
+
+### initial setup
 
 Create an initial config file.
 ```shell
@@ -40,7 +42,10 @@ sed -i -e "s|^#secret =.*|secret = \"$(grep -oP 'session key.+secret=\K[0-9a-f]+
        -e 's|^#\[sessions\]|[sessions]|' oqcd.toml
 ```
 
-Starting
+### Start
 ```shell
 ./bin/oqcd
 ```
+
+or see the [install hints](./docs/installation.md).
+
