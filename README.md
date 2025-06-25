@@ -19,9 +19,10 @@ See [how to build](./docs/build.md).
 
 ### initial setup
 
-Create an initial config file.
+Create an initial config file and notices file:
 ```shell
 cp docs/example-oqcd.toml oqcd.toml
+cp docs/example-notices.tmpl web/templates/notices.tmpl
 ```
 
 Do the initial database migration.

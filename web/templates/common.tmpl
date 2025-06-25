@@ -54,7 +54,11 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{- define "footer" }}
   </main>
   <footer>
-    <p>OQC v{{ SemVersion }} at <a href="https://github.com/csaf-auxiliary/oasis-quorum-calculator">GitHub</a></p>
+    <p> <a
+      href="https://github.com/csaf-auxiliary/oasis-quorum-calculator">OQC</a>
+      v{{ SemVersion }}
+      {{ template "notices" }}
+    </p>
   </footer>
 </body>
 </html>
