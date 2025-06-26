@@ -66,6 +66,10 @@ func run(meetingCSV, committee, databaseURL string, useName bool) error {
 
 	meetings := []meeting{}
 
+	// we only load users that have attended a meeting, even if they are
+	// a member of the committee FIXME #103
+	// an alternative could potentially be
+	// overview, err := models.LoadMeetingsOverview(ctx, dbdb, committee.ID, -1)
 	loadAttendeesSQL := `SELECT m.start_time, m.stop_time, m.gathering, m.description, group_concat(nickname) FROM meetings m ` +
 		`LEFT JOIN attendees a ON m.id = a.meetings_id `
 
@@ -139,6 +143,14 @@ func run(meetingCSV, committee, databaseURL string, useName bool) error {
 		if err != nil {
 			return err
 		}
+		/* we can find out about the current membership, but not the initial
+		   status
+		ms := dbUser.FindMembership(committee)
+		if ms == nil {
+			return fmt.Errorf("found that user %s has attended a meeting but is ot a member?!", user)
+		}
+		fmt.Print(ms.Status) // but we want the initial status and role
+		*/
 		attendeeMatrix[i][0] = "TODO"
 		attendeeMatrix[i][1] = "TODO"
 		if useName {
