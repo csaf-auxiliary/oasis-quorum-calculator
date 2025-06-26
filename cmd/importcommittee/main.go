@@ -22,6 +22,8 @@ import (
 	"log"
 	"os"
 
+	"github.com/jmoiron/sqlx"
+
 	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/config"
 	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/database"
 	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/misc"
@@ -35,13 +37,85 @@ type user struct {
 }
 
 type meeting struct {
-	startTime time.Time
-	attendees []string
+	startTime   time.Time
+	stopTime    time.Time
+	description *string
+	gathering   bool
+	attendees   []string
 }
 
 type data struct {
-	users    []*user
-	meetings []*meeting
+	users       []*user
+	meetings    []*meeting
+	appearances map[string]time.Time
+	absences    map[string][]time.Time
+}
+
+func (d *data) findUser(name string) *user {
+	if idx := slices.IndexFunc(d.users, func(u *user) bool {
+		return u.name == name
+	}); idx >= 0 {
+		return d.users[idx]
+	}
+	return nil
+}
+
+func (d *data) storeAbsences(
+	ctx context.Context,
+	db *sqlx.DB,
+	startTime, stopTime time.Time,
+	committeeID int64,
+) error {
+	const insertSQL = `INSERT INTO member_absent ` +
+		`(nickname, start_time, stop_time, committee_id) ` +
+		`VALUES (?, ?, ?, ?)`
+	var (
+		from = startTime.Add(-time.Second).UTC()
+		to   = stopTime.Add(time.Second).UTC()
+	)
+	for name, absences := range d.absences {
+		for _, t := range absences {
+			if !t.Equal(startTime) {
+				continue
+			}
+			if _, err := db.ExecContext(
+				ctx, insertSQL,
+				name, from, to, committeeID,
+			); err != nil {
+				return fmt.Errorf("inserting absent failed: %w", err)
+			}
+		}
+	}
+	return nil
+}
+
+func (d *data) storeNewMembers(
+	ctx context.Context,
+	db *database.Database,
+	startTime time.Time,
+	attendees []string,
+	committee *models.Committee,
+) error {
+	for _, att := range attendees {
+		if d.appearances[att].Equal(startTime) {
+			user := d.findUser(att)
+			if user == nil {
+				return fmt.Errorf("could not find appearing user: %q", att)
+			}
+			ms := &models.Membership{
+				Committee: committee,
+				Status:    user.initialStatus,
+				Roles:     []models.Role{user.initialRole},
+			}
+			if !slices.Contains(ms.Roles, models.MemberRole) {
+				ms.Roles = append(ms.Roles, models.MemberRole)
+			}
+			if err := models.UpdateMembershipsWithTimestamp(ctx, db, user.name, misc.Values(ms), time.Time{}); err != nil {
+				return fmt.Errorf("updating membership failed: %w", err)
+			}
+		}
+	}
+	return nil
 }
 
 func fuzzyMatchUser(name string) func(*models.User) bool {
@@ -57,9 +131,80 @@ func fuzzyMatchUser(name string) func(*models.User) bool {
 	}
 }
 
-func extractMeetings(records [][]string) ([]*meeting, error) {
-	var meetings []*meeting
+func parseDateTime(dateTimeStr string) (time.Time, error) {
+	layouts := []string{
+		"2006-01-02 15:04:05",
+		"2006-01-02",
+	}
 
+	for _, layout := range layouts {
+		t, err := time.Parse(layout, dateTimeStr)
+		if err == nil {
+			return t, nil
+		}
+	}
+
+	return time.Time{}, fmt.Errorf("unable to parse date/time string: %q with any known format", dateTimeStr)
+}
+
+func (d *data) replaceNamesByNicknames(users []*models.User) error {
+
+	replace := func(name *string) error {
+		// Check if username exists
+		idx := slices.IndexFunc(users, func(u *models.User) bool {
+			return u.Nickname == *name
+		})
+		// Username not found trying firstname and lastname
+		if idx < 0 {
+			if idx = slices.IndexFunc(users, fuzzyMatchUser(*name)); idx < 0 {
+				return fmt.Errorf("no nickname found for user %q", *name)
+			}
+			// Set username if a good match was found
+			*name = users[idx].Nickname
+		}
+		return nil
+	}
+
+	for _, user := range d.users {
+		if err := replace(&user.name); err != nil {
+			return err
+		}
+	}
+
+	for _, m := range d.meetings {
+		for attendeeIdx := range m.attendees {
+			if err := replace(&m.attendees[attendeeIdx]); err != nil {
+				return err
+			}
+		}
+	}
+
+	appearances := make(map[string]time.Time, len(d.appearances))
+	for name, first := range d.appearances {
+		if err := replace(&name); err != nil {
+			return err
+		}
+		appearances[name] = first
+	}
+	d.appearances = appearances
+
+	absences := make(map[string][]time.Time, len(d.absences))
+	for name, abs := range d.absences {
+		if err := replace(&name); err != nil {
+			return err
+		}
+		absences[name] = abs
+	}
+	d.absences = absences
+	return nil
+}
+
+func extractMeetings(records [][]string) (
+	[]*meeting,
+	map[string]time.Time,
+	map[string][]time.Time,
+	error,
+) {
 	// Transpose rows to columns
 	numCols := len(records[0])
 	columns := make([][]string, numCols)
@@ -73,28 +218,67 @@ func extractMeetings(records [][]string) ([]*meeting, error) {
 
 	// Meeting columns start after the initial user status list
 	if len(columns) <= 3 {
-		return nil, errors.New("not enough columns")
+		return nil, nil, nil, errors.New("not enough columns")
 	}
 	columns = columns[3:]
+	var meetings []*meeting
+
+	// When does a user first appear in the committee?
+	appearances := map[string]time.Time{}
+	absences := map[string][]time.Time{}
 
 	for _, m := range columns {
 		if len(m) < 1 || m[0] == "" {
 			continue
 		}
-		t, err := time.Parse("2006-01-02", m[0])
+		startTime, err := parseDateTime(m[0])
 		if err != nil {
-			return nil, err
+			return nil, nil, nil, err
 		}
 
 		attendees := []string{}
+		gathering := false
+		stopTime := startTime.Add(time.Hour * 1)
+		var description *string
 		for _, a := range m[1:] {
-			if a != "" {
-				attendees = append(attendees, a)
+			a = strings.TrimSpace(a)
+			if a == "" {
+				continue
 			}
+			if a == "(informational)" {
+				gathering = true
+				continue
+			}
+			if strings.HasPrefix(a, "Description: ") {
+				d := strings.TrimPrefix(a, "Description: ")
+				if d != "" {
+					description = &d
+				}
+				continue
+			}
+			if strings.HasPrefix(a, "Stop-Time: ") {
+				stopTime, err = parseDateTime(strings.TrimPrefix(a, "Stop-Time: "))
+				if err != nil {
+					return nil, nil, nil, err
+				}
+				continue
+			}
+			if strings.HasSuffix(a, "(Leave of absence)") {
+				a = strings.TrimSpace(a[:len(a)-len("(Leave of absence)")])
+				absences[a] = append(absences[a], startTime)
+				continue
+			}
+			if first, ok := appearances[a]; !ok || first.After(startTime) {
+				appearances[a] = startTime
+			}
+			attendees = append(attendees, a)
 		}
 		meetings = append(meetings, &meeting{
-			startTime: t,
-			attendees: attendees,
+			startTime:   startTime,
+			stopTime:    stopTime,
+			attendees:   attendees,
+			description: description,
+			gathering:   gathering,
 		})
 	}
 
@@ -102,7 +286,7 @@ func extractMeetings(records [][]string) ([]*meeting, error) {
 	slices.SortFunc(meetings, func(a, b *meeting) int {
 		return a.startTime.Compare(b.startTime)
 	})
-	return meetings, nil
+	return meetings, appearances, absences, nil
 }
 
 func extractUsers(records [][]string) ([]*user, error) {
@@ -179,15 +363,64 @@ func loadCSV(filename string) (*data, error) {
 		return nil, fmt.Errorf("extracting users failed: %w", err)
 	}
 
-	meetings, err := extractMeetings(records)
+	meetings, appearances, absences, err := extractMeetings(records)
 	if err != nil {
 		return nil, fmt.Errorf("extracting meetings failed: %w", err)
 	}
 
 	return &data{
-		users:    users,
-		meetings: meetings,
+		users:       users,
+		meetings:    meetings,
+		appearances: appearances,
+		absences:    absences,
 	}, nil
+}
+
+func deleteOldMeetings(
+	ctx context.Context,
+	db *sqlx.DB,
+	committeeID int64,
+) error {
+	const deleteAttendees = `DELETE FROM attendees WHERE meetings_id IN (SELECT id FROM meetings WHERE committees_id = ?)`
+	if _, err := db.ExecContext(ctx, deleteAttendees, committeeID); err != nil {
+		return err
+	}
+	const deleteAttendeesChanges = `DELETE FROM attendees_changes WHERE meetings_id IN (SELECT id FROM meetings WHERE committees_id = ?)`
+	if _, err := db.ExecContext(ctx, deleteAttendeesChanges, committeeID); err != nil {
+		return err
+	}
+	const deleteSQL = `DELETE FROM meetings WHERE committees_id = ?`
+	_, err := db.ExecContext(ctx, deleteSQL, committeeID)
+	return err
+}
+
+func deleteMembership(
+	ctx context.Context,
+	db *sqlx.DB,
+	committeeID int64,
+) error {
+	const deleteSQL = `DELETE FROM member_history WHERE committees_id = ?`
+	_, err := db.ExecContext(ctx, deleteSQL, committeeID)
+	return err
+}
+
+func deleteAbsenses(
+	ctx context.Context,
+	db *sqlx.DB,
+	committeeID int64,
+) error {
+	const deleteSQL = `DELETE FROM member_absent WHERE committee_id = ?`
+	_, err := db.ExecContext(ctx, deleteSQL, committeeID)
+	return err
+}
+
+func findCommittee(committees []*models.Committee, name string) *models.Committee {
+	if idx := slices.IndexFunc(committees, func(c *models.Committee) bool {
+		return c.Name == name
+	}); idx >= 0 {
+		return committees[idx]
+	}
+	return nil
 }
 
 func run(committee, csv, databaseURL string) error {
@@ -211,12 +444,7 @@ func run(committee, csv, databaseURL string) error {
 		return err
 	}
 
-	var committeeModel *models.Committee
-	for _, c := range committees {
-		if c.Name == committee {
-			committeeModel = c
-		}
-	}
+	committeeModel := findCommittee(committees, committee)
 	if committeeModel == nil {
 		return fmt.Errorf("committee %q not found", committee)
 	}
@@ -228,69 +456,65 @@ func run(committee, csv, databaseURL string) error {
 		return fmt.Errorf("loading users failed: %w", err)
 	}
 
-	for _, user := range table.users {
-		// Check if username exists
-		idx := slices.IndexFunc(users, func(u *models.User) bool {
-			return u.Nickname == user.name
-		})
-		// Username not found trying firstname and lastname
-		if idx < 0 {
-			if idx = slices.IndexFunc(users, fuzzyMatchUser(user.name)); idx < 0 {
-				return fmt.Errorf("no nickname found for user %q", user.name)
-			}
-			// Set username if a good match was found
-			user.name = users[idx].Nickname
-		}
+	// The nickname is the primary key to the database user,
+	// so try to find it by looking it up in the loaded users and replace it.
+	if err := table.replaceNamesByNicknames(users); err != nil {
+		return err
+	}
+
+	if err := deleteOldMeetings(ctx, db.DB, committeeModel.ID); err != nil {
+		return fmt.Errorf("deleting old meetings failed: %w", err)
+	}
+
+	if err := deleteMembership(ctx, db.DB, committeeModel.ID); err != nil {
+		return fmt.Errorf("deleting membership failed: %w", err)
+	}
+
+	if err := deleteAbsenses(ctx, db.DB, committeeModel.ID); err != nil {
+		return fmt.Errorf("deleting absences failed: %w", err)
 	}
 
 	for _, m := range table.meetings {
-		for attendeeIdx, attendee := range m.attendees {
-			// Check if username exists
-			idx := slices.IndexFunc(users, func(u *models.User) bool {
-				return u.Nickname == attendee
-			})
-			// Username not found trying firstname and lastname
-			if idx < 0 {
-				if idx = slices.IndexFunc(users, fuzzyMatchUser(attendee)); idx < 0 {
-					return fmt.Errorf("no nickname found for attendee %q", attendee)
-				}
-				// Set username if a good match was found
-				m.attendees[attendeeIdx] = users[idx].Nickname
-			}
-		}
-	}
-
-	for _, user := range table.users {
-		ms := &models.Membership{
-			Committee: committeeModel,
-			Status:    user.initialStatus,
-			Roles:     []models.Role{user.initialRole},
-		}
-		if err := models.UpdateMemberships(ctx, db, user.name, misc.Values(ms)); err != nil {
+		var (
+			from = m.startTime
+			to   = m.stopTime
+		)
+		// We add users right before their first meeting to the committee.
+		if err := table.storeNewMembers(ctx, db, from, m.attendees, committeeModel); err != nil {
 			return err
 		}
-	}
+		// Store the leaves of absence.
+		if err := table.storeAbsences(ctx, db.DB, from, to, committeeModel.ID); err != nil {
+			return err
+		}
 
-	for _, m := range table.meetings {
 		meeting := models.Meeting{
 			CommitteeID: committeeModel.ID,
-			Gathering:   false,
-			StartTime:   m.startTime,
-			// TODO: Don't guess stop time
-			StopTime:    m.startTime.Add(1 * time.Hour),
-			Description: nil,
+			Gathering:   m.gathering,
+			StartTime:   from,
+			StopTime:    to,
+			Description: m.description,
 		}
 		if err = meeting.StoreNew(ctx, db); err != nil {
 			return err
 		}
 
-		misc.Attribute(misc.Values(m.attendees), true)
-
-		if err = models.Attend(ctx, db, meeting.ID, misc.Attribute(misc.Values(m.attendees...), true), meeting.StartTime); err != nil {
+		if err = models.Attend(
+			ctx, db,
+			meeting.ID,
+			misc.Attribute(slices.Values(m.attendees), true),
+			from,
+		); err != nil {
 			return err
 		}
 
-		if err = models.ChangeMeetingStatus(ctx, db, meeting.ID, committeeModel.ID, models.MeetingConcluded, meeting.StopTime); err != nil {
+		if err = models.ChangeMeetingStatus(
+			ctx, db,
+			meeting.ID,
+			committeeModel.ID,
+			models.MeetingConcluded,
+			to,
+		); err != nil {
 			return err
 		}
 	}
