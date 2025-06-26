@@ -25,6 +25,9 @@ import (
 	"github.com/jmoiron/sqlx"
 
 	_ "github.com/mattn/go-sqlite3" // Link SQLite 3 driver.
+
+	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/database"
+	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/models"
 )
 
 func check(err error) {
@@ -57,6 +60,9 @@ func run(meetingCSV, committee, databaseURL string) error {
 		return err
 	}
 	defer db.Close()
+
+	// the methods in models want a wrapped database, so FIXME for consistency
+	dbdb := &database.Database{DB: db}
 
 	meetings := []meeting{}
 
@@ -101,10 +107,11 @@ func run(meetingCSV, committee, databaseURL string) error {
 	}
 
 	// This will hold the meeting metadata rows of the CSV
-	var startTimesRow []string
-	var stopTimesRow []string
-	var descriptionRow []string
-	var gatheringRow []string
+	// we fill in the first three columns
+	startTimesRow := []string{"Status", "Role", "Name"}
+	stopTimesRow := []string{"", "", ""}
+	descriptionRow := []string{"", "", ""}
+	gatheringRow := []string{"", "", ""}
 
 	// Populate meeting rows and find maxAttendees
 	for _, m := range meetings {
@@ -123,14 +130,23 @@ func run(meetingCSV, committee, databaseURL string) error {
 	// We pre-allocate it based on maxAttendees for rows and number of meetings for columns.
 	attendeeMatrix := make([][]string, len(users))
 	for i := range attendeeMatrix {
-		attendeeMatrix[i] = make([]string, len(meetings))
+		attendeeMatrix[i] = make([]string, 3+len(meetings))
 	}
 
 	// Populate the attendeeMatrix
+	for i, user := range users {
+		dbUser, err := models.LoadUser(ctx, dbdb, user, nil)
+		if err != nil {
+			return err
+		}
+		attendeeMatrix[i][0] = "TODO"
+		attendeeMatrix[i][1] = "TODO"
+		attendeeMatrix[i][2] = *dbUser.Firstname + " " + *dbUser.Lastname
+	}
 	for mIdx, m := range meetings {
 		for i, user := range users {
 			if slices.Index(m.attendees, i) >= 0 {
-				attendeeMatrix[i][mIdx] = user
+				attendeeMatrix[i][3+mIdx] = user
 			}
 		}
 	}
