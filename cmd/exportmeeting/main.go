@@ -145,10 +145,10 @@ func run(meetingCSV, committee, databaseURL string, useName bool) error {
 			attendeeMatrix[i][2] = *dbUser.Firstname + " " + *dbUser.Lastname
 		} else {
 			attendeeMatrix[i][2] = user
-			}
+		}
 	}
 	for mIdx, m := range meetings {
-		for i, _ := range users {
+		for i := range users {
 			if slices.Index(m.attendees, i) >= 0 {
 				attendeeMatrix[i][3+mIdx] = attendeeMatrix[i][2]
 			}
