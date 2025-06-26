@@ -51,7 +51,7 @@ type meeting struct {
 	attendees   []int
 }
 
-func run(meetingCSV, committee, databaseURL string) error {
+func run(meetingCSV, committee, databaseURL string, useName bool) error {
 	ctx := context.Background()
 
 	url := sqlite3URL(databaseURL)
@@ -141,12 +141,16 @@ func run(meetingCSV, committee, databaseURL string) error {
 		}
 		attendeeMatrix[i][0] = "TODO"
 		attendeeMatrix[i][1] = "TODO"
-		attendeeMatrix[i][2] = *dbUser.Firstname + " " + *dbUser.Lastname
+		if useName {
+			attendeeMatrix[i][2] = *dbUser.Firstname + " " + *dbUser.Lastname
+		} else {
+			attendeeMatrix[i][2] = user
+			}
 	}
 	for mIdx, m := range meetings {
-		for i, user := range users {
+		for i, _ := range users {
 			if slices.Index(m.attendees, i) >= 0 {
-				attendeeMatrix[i][3+mIdx] = user
+				attendeeMatrix[i][3+mIdx] = attendeeMatrix[i][2]
 			}
 		}
 	}
@@ -179,13 +183,15 @@ func main() {
 		meetingCSV  string
 		committee   string
 		databaseURL string
+		useName     bool
 	)
 	flag.StringVar(&meetingCSV, "meeting", "meetings.csv", "CSV file of the meetings to be exported.")
 	flag.StringVar(&meetingCSV, "m", "meetings.csv", "CSV file of the meetings to be exported (shorthand).")
 	flag.StringVar(&committee, "committee", "", "Committee meetings that should be exported")
 	flag.StringVar(&databaseURL, "database", "oqcd.sqlite", "SQLite database")
 	flag.StringVar(&databaseURL, "d", "oqcd.sqlite", "SQLite database (shorthand)")
+	flag.BoolVar(&useName, "usename", true, "Export full names instead of id")
 	flag.Parse()
 
-	check(run(meetingCSV, committee, databaseURL))
+	check(run(meetingCSV, committee, databaseURL, useName))
 }
