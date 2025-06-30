@@ -41,3 +41,18 @@ WantedBy=multi-user.target
 
 (both caddy (by root) and oqc (by the user)
 need to be enabled and started with systemctl)
+
+## What to backup
+
+The minimum to backup is:
+
+* the database `oqcd.sqlite`
+* changed `web/` templates
+
+In practice you want to save more for a faster recovery:
+
+* all of `/opt/oqc/` which includes the two minmim items,
+  but also the config file and the exact binary that was used.
+* the caddy configuration files, e.g. directory /etc/caddy/
+* notes of the system administration for example, we
+  use `/etc/logbuch.txt` for our Debian based GNU/Linux systems.
