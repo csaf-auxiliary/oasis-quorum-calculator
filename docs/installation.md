@@ -31,6 +31,7 @@ After=network.target
 Type=idle
 User=oqc
 Group=oqc
+RuntimeDirectory=oqc
 WorkingDirectory=/opt/oqc
 ExecStart=/opt/oqc/bin/oqcd -c /opt/oqc/oqcd.toml
 
