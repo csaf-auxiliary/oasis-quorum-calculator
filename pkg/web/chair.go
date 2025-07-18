@@ -9,6 +9,7 @@
 package web
 
 import (
+	"database/sql"
 	"encoding/csv"
 	"errors"
 	"fmt"
@@ -415,10 +416,6 @@ func (c *Controller) meetingStatusError(
 		c.chair(w, r)
 		return
 	}
-	members, err := models.LoadCommitteeUsers(ctx, c.db, committeeID, &meeting.StartTime)
-	if !check(w, r, err) {
-		return
-	}
 	attendees, err := meeting.Attendees(ctx, c.db)
 	if !check(w, r, err) {
 		return
@@ -432,26 +429,64 @@ func (c *Controller) meetingStatusError(
 		return
 	}
 
-	var numVoters, attendingVoters, numNonVoters, numMembers int
-	for _, member := range members {
-		if ms := member.FindMembership(committee.Name); ms != nil &&
-			ms.HasRole(models.MemberRole) {
-			switch ms.Status {
+	// Number of all members, number of voting members, number of voters attending the meeting,
+	// number of permanent non-voters, number of members with no voting rights.
+	var numTotal, numVoters, attendingVoters, numNonVoters, numMembers int
+
+	var historicalUsers []models.HistoricalUser
+
+	allUsers, err := models.LoadAllUsers(ctx, c.db)
+
+	tx, err := c.db.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return
+	}
+	defer tx.Rollback() // Rollback on error or if commit is not reached
+
+	// Load all user histories for the given committee
+	allUsersHistories, err := models.LoadUsersHistoriesTx(ctx, tx, committeeID)
+	if err != nil {
+		return
+	}
+
+	// Go over all users to include those that have left the committee since
+	for _, user := range allUsers {
+		// Define realStatus so it can be used later in scope
+		realStatus := models.NoMember
+		// Get explicit user History
+		userHistory, found := allUsersHistories[user.Nickname]
+
+		// if the User was part of the committee at meeting start, get Status they had at the time
+		if found {
+			realStatus = userHistory.Status(meeting.StartTime)
+		}
+
+		if realStatus != models.NoMember {
+			numTotal++
+
+			member := models.HistoricalUser{
+				User:   user,
+				Status: realStatus,
+			}
+
+			historicalUsers = append(historicalUsers, member)
+			switch realStatus {
 			case models.Voting:
 				numVoters++
-				if attendees[member.Nickname] {
+				if attendees[user.Nickname] {
 					attendingVoters++
 				}
 			case models.NoneVoting:
 				numNonVoters++
 			case models.Member:
 				numMembers++
+			default:
+				return
 			}
 		}
 	}
-
 	quorum := models.Quorum{
-		Total:           len(members),
+		Total:           numTotal,
 		Member:          numMembers,
 		Voting:          numVoters,
 		AttendingVoting: attendingVoters,
@@ -459,13 +494,13 @@ func (c *Controller) meetingStatusError(
 		NonVoting:       numNonVoters,
 	}
 
-	slices.SortFunc(members, (*models.User).Compare)
+	slices.SortFunc(historicalUsers, (models.HistoricalUser).Compare)
 
 	data := templateData{
 		"Session":        auth.SessionFromContext(ctx),
 		"User":           auth.UserFromContext(ctx),
 		"Meeting":        meeting,
-		"Members":        members,
+		"Members":        historicalUsers,
 		"Attendees":      attendees,
 		"Quorum":         &quorum,
 		"Committee":      committee,
@@ -474,6 +509,7 @@ func (c *Controller) meetingStatusError(
 	if errMsg != "" {
 		data.error(errMsg)
 	}
+
 	check(w, r, c.tmpls.ExecuteTemplate(w, "meeting_status.tmpl", data))
 }
 

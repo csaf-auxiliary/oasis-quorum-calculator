@@ -68,6 +68,12 @@ type User struct {
 	Password    *string
 }
 
+// HistoricalUser links a user to a Memberstatus
+type HistoricalUser struct {
+	User   *User
+	Status MemberStatus
+}
+
 // UserHistoryEntry is a point in time after this status applys.
 type UserHistoryEntry struct {
 	Since  time.Time
@@ -141,6 +147,13 @@ func (ms MemberStatus) String() string {
 	default:
 		return fmt.Sprintf("unknown member status (%d)", ms)
 	}
+}
+
+// Compare compares this HistoricalUsers user with the other
+// by its firstname, lastname and nickname by passing the user
+// to their compare function
+func (h HistoricalUser) Compare(o HistoricalUser) int {
+	return h.User.Compare(o.User)
 }
 
 // Compare compares this user with the other by its
@@ -502,6 +515,25 @@ func UpdateMemberships(
 		return err
 	}
 	defer tx.Rollback()
+
+	// Identify committees the member was part of before being removed
+	const queryCommitteesSQL = `SELECT DISTINCT committees_id FROM committee_roles WHERE nickname = ?`
+	rows, err := tx.QueryContext(ctx, queryCommitteesSQL, nickname)
+	if err != nil {
+		return fmt.Errorf("querying committees failed: %w", err)
+	}
+	var committeeIDs []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			rows.Close()
+			return fmt.Errorf("scanning committee ID failed: %w", err)
+		}
+		committeeIDs = append(committeeIDs, id)
+	}
+	rows.Close()
+
+	// Delete existing roles
 	const deleteSQL = `DELETE FROM committee_roles WHERE nickname = ?`
 	if _, err := tx.ExecContext(ctx, deleteSQL, nickname); err != nil {
 		return fmt.Errorf("deleting committee roles failed: %w", err)
@@ -537,6 +569,24 @@ func UpdateMemberships(
 	}
 
 	now := time.Now().UTC()
+
+	// Insert NoMember status for removed committees
+	for _, committeeID := range committeeIDs {
+		var status MemberStatus
+		switch err := queryStatusStmt.QueryRowContext(ctx, nickname, committeeID).Scan(&status); {
+		case errors.Is(err, sql.ErrNoRows):
+			status = MemberStatus(^0) // Invalid value to force insert
+		case err != nil:
+			return fmt.Errorf("querying status for committee %d failed: %w", committeeID, err)
+		}
+		// Insert NoMember if the previous status was not NoMember
+		if status != NoMember {
+			if _, err := insertStatusStmt.ExecContext(ctx, nickname, committeeID, NoMember, now); err != nil {
+				return fmt.Errorf("inserting NoMember for committee %d failed: %w", committeeID, err)
+			}
+		}
+	}
+
 	for ms := range memberships {
 		for _, r := range ms.Roles {
 			if _, err := insertRoleStmt.ExecContext(

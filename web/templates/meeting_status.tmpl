@@ -111,19 +111,18 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
     {{ if $allowWrite }}
     <td><input type="checkbox"
                name="attend"
-               value="{{ .Nickname }}"></td>
+               value="{{ .User.Nickname }}"></td>
     {{- end }}
-    <td>{{ if index $attendees .Nickname }}&check;{{ end }}</td>
-    <td>{{ if ne .Firstname nil }}{{ .Firstname }}{{ end }}</td>
-    <td>{{ if ne .Lastname nil }}{{ .Lastname }}{{ end }}</td>
+    <td>{{ if index $attendees .User.Nickname }}&check;{{ end }}</td>
+    <td>{{ if ne .User.Firstname nil }}{{ .User.Firstname }}{{ end }}</td>
+    <td>{{ if ne .User.Lastname nil }}{{ .User.Lastname }}{{ end }}</td>
     {{ if $notOnlyMember }}
-        <td>{{ .Nickname }}</td>
+        <td>{{ .User.Nickname }}</td>
     {{ end }}
 {{ if not $gathering }}
-    {{ $ms := .FindMembership $committeeName }}
-    <td>{{ if eq $ms.Status $statusVoting }}&check;{{ end }}</td>
-    <td>{{ if eq $ms.Status $statusMember }}&check;{{ end }}</td>
-    <td>{{ if eq $ms.Status $statusNoneVoting }}&check;{{ end }}</td>
+    <td>{{ if eq .Status $statusVoting }}&check;{{ end }}</td>
+    <td>{{ if eq .Status $statusMember }}&check;{{ end }}</td>
+    <td>{{ if eq .Status $statusNoneVoting }}&check;{{ end }}</td>
 {{ end }}
   </tr>
 {{ end }}
