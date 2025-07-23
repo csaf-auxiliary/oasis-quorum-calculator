@@ -70,7 +70,7 @@ type User struct {
 
 // HistoricalUser links a user to a Memberstatus
 type HistoricalUser struct {
-	User   *User
+	*User
 	Status MemberStatus
 }
 
@@ -149,14 +149,6 @@ func (ms MemberStatus) String() string {
 	}
 }
 
-// Compare compares this HistoricalUsers user with the other
-// by its firstname, lastname and nickname by passing the user
-// to their compare function
-func (h HistoricalUser) Compare(o HistoricalUser) int {
-	return h.User.Compare(o.User)
-}
-
-// Compare compares this user with the other by its
 // firstname, lastname and nickname.
 func (u *User) Compare(o *User) int {
 	return cmp.Or(
@@ -523,13 +515,19 @@ func UpdateMemberships(
 		return fmt.Errorf("querying committees failed: %w", err)
 	}
 	var committeeIDs []int64
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			rows.Close()
-			return fmt.Errorf("scanning committee ID failed: %w", err)
+
+	if err := func() error {
+		defer rows.Close()
+		for rows.Next() {
+			var id int64
+			if err := rows.Scan(&id); err != nil {
+				return err
+			}
+			committeeIDs = append(committeeIDs, id)
 		}
-		committeeIDs = append(committeeIDs, id)
+		return rows.Err()
+	}(); err != nil {
+		return fmt.Errorf("scanning committee IDs failed: %w", err)
 	}
 	rows.Close()
 

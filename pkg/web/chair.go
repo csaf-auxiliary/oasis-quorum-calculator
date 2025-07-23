@@ -433,8 +433,6 @@ func (c *Controller) meetingStatusError(
 	// number of permanent non-voters, number of members with no voting rights.
 	var numTotal, numVoters, attendingVoters, numNonVoters, numMembers int
 
-	var historicalUsers []models.HistoricalUser
-
 	allUsers, err := models.LoadAllUsers(ctx, c.db)
 
 	tx, err := c.db.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
@@ -448,6 +446,8 @@ func (c *Controller) meetingStatusError(
 	if err != nil {
 		return
 	}
+
+	var historicalUsers []*models.HistoricalUser
 
 	// Go over all users to include those that have left the committee since
 	for _, user := range allUsers {
@@ -464,7 +464,7 @@ func (c *Controller) meetingStatusError(
 		if realStatus != models.NoMember {
 			numTotal++
 
-			member := models.HistoricalUser{
+			member := &models.HistoricalUser{
 				User:   user,
 				Status: realStatus,
 			}
@@ -494,7 +494,9 @@ func (c *Controller) meetingStatusError(
 		NonVoting:       numNonVoters,
 	}
 
-	slices.SortFunc(historicalUsers, (models.HistoricalUser).Compare)
+	slices.SortFunc(historicalUsers, func(a, b *models.HistoricalUser) int {
+		return a.Compare(b.User)
+	})
 
 	data := templateData{
 		"Session":        auth.SessionFromContext(ctx),
