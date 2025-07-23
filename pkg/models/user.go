@@ -149,7 +149,7 @@ func (ms MemberStatus) String() string {
 	}
 }
 
-// firstname, lastname and nickname.
+// Compare compares by firstname, lastname and nickname.
 func (u *User) Compare(o *User) int {
 	return cmp.Or(
 		misc.CompareEmptyStrings(u.Firstname, o.Firstname),
