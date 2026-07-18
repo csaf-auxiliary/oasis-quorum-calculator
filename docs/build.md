@@ -10,7 +10,7 @@
 
 # Build
 
-To build OQC you need a Go compiler at least of version 1.24.1.
+To build OQC you need a Go compiler at least of version 1.26.5.
 You can get it at [go.dev/dl](https://go.dev/dl/).
 
 As OQC currently uses [SQLite 3](https://www.sqlite.org) as its
