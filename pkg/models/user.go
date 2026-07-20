@@ -219,11 +219,8 @@ func (m *Membership) GetCommittee() *Committee {
 func (u *User) CountMemberships(role ...Role) int {
 	count := 0
 	for _, m := range u.Memberships {
-		for _, role := range role {
-			if m.HasRole(role) {
-				count++
-				break
-			}
+		if slices.ContainsFunc(role, m.HasRole) {
+			count++
 		}
 	}
 	return count
@@ -235,12 +232,7 @@ func (u *User) CommitteesWithRole(role ...Role) iter.Seq[*Committee] {
 	return misc.Map(
 		misc.Filter(slices.Values(u.Memberships),
 			func(m *Membership) bool {
-				for _, role := range role {
-					if m.HasRole(role) {
-						return true
-					}
-				}
-				return false
+				return slices.ContainsFunc(role, m.HasRole)
 			}),
 		(*Membership).GetCommittee)
 }
