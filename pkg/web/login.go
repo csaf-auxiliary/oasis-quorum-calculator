@@ -11,6 +11,7 @@ package web
 import (
 	"net/http"
 	"net/url"
+	"time"
 
 	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/auth"
 	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/models"
@@ -55,6 +56,16 @@ func (c *Controller) login(w http.ResponseWriter, r *http.Request) {
 		c.authFailed(w, r, nickname, "Login failed")
 		return
 	}
+	cookie := http.Cookie{
+		Name:     "sid",
+		Value:    session.ID(),
+		Path:     "/",
+		MaxAge:   int(c.cfg.Sessions.MaxAge.Seconds()),
+		HttpOnly: true,
+		Secure:   false,
+		SameSite: http.SameSiteLaxMode,
+	}
+	http.SetCookie(w, &cookie)
 	_, err = models.LoadUser(r.Context(), c.db, nickname, nil)
 	if !check(w, r, err) {
 		return
@@ -63,6 +74,13 @@ func (c *Controller) login(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, "/?SESSIONID="+url.QueryEscape(session.ID()), http.StatusFound)
 }
 
-func (c *Controller) logout(_ http.ResponseWriter, r *http.Request) {
+func (c *Controller) logout(w http.ResponseWriter, r *http.Request) {
+	cookie := http.Cookie{
+		Name:    "sid",
+		Value:   "",
+		Path:    "/",
+		Expires: time.Unix(0, 0),
+	}
+	http.SetCookie(w, &cookie)
 	auth.SessionFromContext(r.Context()).Delete()
 }

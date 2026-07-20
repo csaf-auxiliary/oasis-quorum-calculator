@@ -164,8 +164,16 @@ func (mw *Middleware) LoggedIn(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		sessionID := r.FormValue(sessionParameter)
 		if sessionID == "" {
-			http.Redirect(w, r, mw.redirect, http.StatusSeeOther)
-			return
+			cookie, err := r.Cookie("sid")
+			if errors.Is(err, http.ErrNoCookie) {
+				http.Redirect(w, r, mw.redirect, http.StatusSeeOther)
+				return
+			} else if err != nil {
+				slog.ErrorContext(r.Context(), "cannot read cookie", "error", err)
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+			sessionID = cookie.Value
 		}
 		token, ok := mw.cfg.Sessions.CheckKey(sessionID)
 		if !ok {
