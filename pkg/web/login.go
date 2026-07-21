@@ -62,7 +62,7 @@ func (c *Controller) login(w http.ResponseWriter, r *http.Request) {
 		Path:     "/",
 		MaxAge:   int(c.cfg.Sessions.MaxAge.Seconds()),
 		HttpOnly: true,
-		Secure:   false,
+		Secure:   c.cfg.Sessions.Secure,
 		SameSite: http.SameSiteLaxMode,
 	}
 	http.SetCookie(w, &cookie)
@@ -79,6 +79,7 @@ func (c *Controller) logout(w http.ResponseWriter, r *http.Request) {
 		Name:    "sid",
 		Value:   "",
 		Path:    "/",
+		Secure:  c.cfg.Sessions.Secure,
 		Expires: time.Unix(0, 0),
 	}
 	http.SetCookie(w, &cookie)

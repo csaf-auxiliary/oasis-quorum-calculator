@@ -29,6 +29,7 @@ type HexBytes []byte
 type Sessions struct {
 	MaxAge time.Duration `toml:"max_age"`
 	Secret HexBytes      `toml:"secret"`
+	Secure bool          `toml:"secure"`
 }
 
 // UnmarshalText implements [encoding.TextUnmarshaler].
