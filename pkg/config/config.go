@@ -160,5 +160,6 @@ func (cfg *Config) fillFromEnv() error {
 		envStore{"OQC_DB_MAX_IDLE_CONNS", storeInt(&cfg.Database.MaxIdleConnections)},
 		envStore{"OQC_DB_CONN_MAX_LIFETIME", storeDuration(&cfg.Database.ConnMaxLifetime)},
 		envStore{"OQC_DB_CONN_MAX_IDLETIME", storeDuration(&cfg.Database.ConnMaxIdletime)},
+		// TODO: Make session vars over-writable by env vars, too.
 	)
 }

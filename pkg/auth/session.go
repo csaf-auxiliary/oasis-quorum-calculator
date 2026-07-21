@@ -16,6 +16,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"io"
+	"sync"
 
 	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/config"
 	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/database"
@@ -23,6 +24,7 @@ import (
 
 // Session encapsulte a database session.
 type Session struct {
+	sync.Mutex
 	delete   bool
 	id       string
 	nickname string
@@ -40,6 +42,8 @@ func (s *Session) ID() string {
 
 // Delete marks the session to be deleted.
 func (s *Session) Delete() {
+	s.Lock()
+	defer s.Unlock()
 	s.delete = true
 }
 
