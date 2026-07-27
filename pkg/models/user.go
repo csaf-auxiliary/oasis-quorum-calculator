@@ -857,9 +857,9 @@ func UpdateUserHistoryEntryTx(
 	pending int,
 ) error {
 	var updateHistoryEntrySQL = `UPDATE member_history ` +
-		`SET (status, pending) = (?, TRUE)` +
+		`SET (status, pending) = (?, ?)` +
 		`WHERE nickname = ? AND since = ?`
-	if _, err := tx.ExecContext(ctx, updateHistoryEntrySQL, status, true, nickname, since); err != nil {
+	if _, err := tx.ExecContext(ctx, updateHistoryEntrySQL, status, pending, nickname, since); err != nil {
 		return fmt.Errorf("updating history entry failed: %w", err)
 	}
 	return nil
