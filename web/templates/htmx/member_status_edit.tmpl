@@ -34,12 +34,6 @@ Software-Engineering: 2026 Intevation GmbH <https://intevation.de>
             {{ if eq $status $statusNoneVoting.String }}selected{{end}}
         >{{ $statusNoneVoting.Label }}</option>
     </select>
-    <button
-        hx-get="/member_status_edit_cancel?&committee={{ $committeeID }}"
-        hx-target="#new-status-{{ $nickname }}"
-        hx-trigger="click"
-    >Cancel</button>
-    <button
-        type="submit"
-    >Apply</button>
+    <button type="submit">Cancel</button>
+    <button type="submit">Apply</button>
 </form>
