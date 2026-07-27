@@ -564,7 +564,7 @@ func UpdateMembershipsTx(
 			`ORDER BY unixepoch(since) DESC LIMIT 1`
 		insertStatusSQL = `INSERT INTO member_history ` +
 			`(nickname, committees_id, status, since, pending) ` +
-			`VALUES (?, ?, ?, ?, TRUE)`
+			`VALUES (?, ?, ?, ?, FALSE)`
 	)
 	var insertRoleStmt, queryStatusStmt, insertStatusStmt *sql.Stmt
 
