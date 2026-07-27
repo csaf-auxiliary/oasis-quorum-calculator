@@ -196,7 +196,6 @@ func ApplyUpDowngrades(
 				misc.Attribute(slices.Values(downgrades), Member)),
 			committeeID,
 			timer,
-			true,
 		); err != nil {
 			return fmt.Errorf("upgrading / downgrading members failed: %w", err)
 		}
