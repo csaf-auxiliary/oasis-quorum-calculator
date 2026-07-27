@@ -12,7 +12,6 @@ package web
 import (
 	"fmt"
 	"html/template"
-	"log"
 	"net/http"
 	"net/url"
 	"path/filepath"
@@ -69,8 +68,6 @@ var templateFuncs = template.FuncMap{
 
 func loadTemplates(cfg *config.Config, subfolder string) (*template.Template, error) {
 	path := filepath.Join(cfg.Web.Root, subfolder, "*.tmpl")
-	log.Printf("line %s has not enough columns\n", path)
-
 	return template.New("index").Funcs(templateFuncs).ParseGlob(path)
 }
 
