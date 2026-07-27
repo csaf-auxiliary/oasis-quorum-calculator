@@ -86,7 +86,7 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
           {{- if      eq .Status $meetingOnHold }}Waiting{{ if $att }} (Attending){{ end }}
           {{- else if eq .Status $meetingRunning }}<strong>Running</strong>
           {{- else if eq .Status $meetingConcluded}}Concluded{{ if $att }} (Attended){{ end }}
-          {{- else}}In Review{{ if $att }} (Attended){{ end }}
+          {{- else}}Review{{ if $att }} (Attended){{ end }}
           {{ end -}}
         </a>
         {{- if eq .Status $meetingRunning }}

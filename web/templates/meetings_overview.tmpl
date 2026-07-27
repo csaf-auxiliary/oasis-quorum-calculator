@@ -24,6 +24,7 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{- $waiting   := MeetingStatus "onhold"    }}
 {{- $running   := MeetingStatus "running"   }}
 {{- $concluded := MeetingStatus "concluded" }}
+{{- $review  := MeetingStatus "review" }}
   <table>
     <thead>
     </thead>
@@ -38,6 +39,7 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
   <br>
   {{-      if eq $m.Status $waiting -}}Waiting
   {{- else if eq $m.Status $running -}}Running
+  {{- else if eq $m.Status $review -}}Review
   {{- else }}Concluded
   {{- end -}}
 </th>
