@@ -754,7 +754,6 @@ func UpdateUserCommitteeStatusTx(
 	users iter.Seq2[string, MemberStatus],
 	committeeID int64,
 	since time.Time,
-	pending bool,
 ) error {
 	const (
 		queryLastSQL = `SELECT status FROM member_history ` +
