@@ -35,6 +35,8 @@ const (
 	MeetingRunning
 	// MeetingConcluded represents a finished meeting.
 	MeetingConcluded
+	// MeetingInReview represents a meeting that has to be reviewed to conclude it.
+	MeetingInReview
 )
 
 // Meeting holds the informations about a meeting.
@@ -126,6 +128,8 @@ func (m MeetingStatus) String() string {
 		return "running"
 	case MeetingConcluded:
 		return "concluded"
+	case MeetingInReview:
+		return "review"
 	default:
 		return fmt.Sprintf("unknown meeting status (%d)", m)
 	}
@@ -140,6 +144,8 @@ func ParseMeetingStatus(s string) (MeetingStatus, error) {
 		return MeetingRunning, nil
 	case "concluded":
 		return MeetingConcluded, nil
+	case "review":
+		return MeetingInReview, nil
 	default:
 		return 0, fmt.Errorf("unknown meeting status %q", s)
 	}
@@ -667,7 +673,7 @@ func HasConcludedMeetingNewerThanTx(
 		`WHERE m1.id = ? ` +
 		`AND m1.committees_id = m2.committees_id ` +
 		`AND m1.id <> m2.id ` +
-		`AND m2.status = 2 ` + // MeetingConcluded
+		`AND m2.status = 3 ` + // MeetingInReview
 		`AND unixepoch(m2.start_time) > unixepoch(m1.start_time))`
 	var exists bool
 	if err := tx.QueryRowContext(ctx, existsSQL, meetingID).Scan(&exists); err != nil {
@@ -708,7 +714,7 @@ func LoadMeetingsOverview(
 		return nil, err
 	}
 
-	histories, err := LoadUsersHistoriesTx(ctx, tx, committeeID)
+	histories, err := LoadUsersHistoriesTx(ctx, tx, committeeID, 10000)
 	if err != nil {
 		return nil, err
 	}

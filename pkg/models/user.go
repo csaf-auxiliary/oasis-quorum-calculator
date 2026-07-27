@@ -74,10 +74,11 @@ type HistoricalUser struct {
 	Status MemberStatus
 }
 
-// UserHistoryEntry is a point in time after this status applys.
+// UserHistoryEntry is a point in time afterUpdateMemberships this status applys.
 type UserHistoryEntry struct {
-	Since  time.Time
-	Status MemberStatus
+	Since   time.Time
+	Status  MemberStatus
+	Pending bool
 }
 
 // UserHistory is a list of status values over time.
@@ -132,6 +133,20 @@ func ParseMemberStatus(s string) (MemberStatus, error) {
 		return NoMember, nil
 	default:
 		return 0, fmt.Errorf("invalid member status %q", s)
+	}
+}
+
+// Label returns a representation of the MemberStatus that can be displayed in the UI.
+func (ms MemberStatus) Label() string {
+	switch ms {
+	case Member:
+		return "Non-Voting Member"
+	case Voting:
+		return "Voting Member"
+	case NoneVoting:
+		return "Persistent Non-Voting Member"
+	default:
+		return fmt.Sprintf("unknown member status (%d)", ms)
 	}
 }
 
@@ -356,7 +371,7 @@ func loadUserTx(
 	// Collect member status in comittees.
 	if len(user.Memberships) > 0 {
 		memberStatusSQL := `SELECT status FROM member_history ` +
-			`WHERE nickname = ? AND committees_id = ? `
+			`WHERE nickname = ? AND committees_id = ? AND pending = false `
 		if before != nil {
 			memberStatusSQL += `AND unixepoch(since) < unixepoch(?) `
 		}
@@ -499,6 +514,17 @@ func UpdateMemberships(
 		return err
 	}
 	defer tx.Rollback()
+	UpdateMembershipsTx(ctx, tx, nickname, memberships)
+	return tx.Commit()
+}
+
+// UpdateMembershipsTx updates the memberships of the user with a given nickname.
+func UpdateMembershipsTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	nickname string,
+	memberships iter.Seq[*Membership],
+) error {
 
 	// Identify committees the member was part of before being removed
 	const queryCommitteesSQL = `SELECT DISTINCT committees_id FROM committee_roles WHERE nickname = ?`
@@ -537,8 +563,8 @@ func UpdateMemberships(
 			`WHERE nickname = ? AND committees_id = ? ` +
 			`ORDER BY unixepoch(since) DESC LIMIT 1`
 		insertStatusSQL = `INSERT INTO member_history ` +
-			`(nickname, committees_id, status, since) ` +
-			`VALUES (?, ?, ?, ?)`
+			`(nickname, committees_id, status, since, pending) ` +
+			`VALUES (?, ?, ?, ?, TRUE)`
 	)
 	var insertRoleStmt, queryStatusStmt, insertStatusStmt *sql.Stmt
 
@@ -616,7 +642,7 @@ func UpdateMemberships(
 			}
 		}
 	}
-	return tx.Commit()
+	return nil
 }
 
 // LoadCommitteeUsers loads all users of a committee.
@@ -728,14 +754,15 @@ func UpdateUserCommitteeStatusTx(
 	users iter.Seq2[string, MemberStatus],
 	committeeID int64,
 	since time.Time,
+	pending bool,
 ) error {
 	const (
 		queryLastSQL = `SELECT status FROM member_history ` +
 			`WHERE nickname = ? AND committees_id = ? ` +
 			`ORDER by unixepoch(since) DESC LIMIT 1`
 		insertSQL = `INSERT INTO member_history ` +
-			`(nickname, committees_id, status, since) ` +
-			`VALUES(?, ?, ?, ?)`
+			`(nickname, committees_id, status, since, pending) ` +
+			`VALUES(?, ?, ?, ?, TRUE)`
 	)
 	qStmt, err := tx.PrepareContext(ctx, queryLastSQL)
 	if err != nil {
@@ -767,16 +794,40 @@ func UpdateUserCommitteeStatusTx(
 	return nil
 }
 
+// PreviousEntry returns the latest entry of the user history
+func (h UsersHistories) PreviousEntry(nickname string) UserHistoryEntry {
+	var history = h[nickname]
+	var last = history[len(history)-2]
+	return *last
+}
+
+// LoadUsersHistories loads the histories of the users of a committee.
+func LoadUsersHistories(
+	ctx context.Context,
+	db *database.Database,
+	committeeID int64,
+	limit int16,
+) (UsersHistories, error) {
+	tx, err := db.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback()
+	return LoadUsersHistoriesTx(ctx, tx, committeeID, limit)
+}
+
 // LoadUsersHistoriesTx loads the histories of the users of a committee.
 func LoadUsersHistoriesTx(
 	ctx context.Context,
 	tx *sql.Tx,
 	committeeID int64,
+	limit int16,
 ) (UsersHistories, error) {
-	const loadHistorySQL = `SELECT nickname, status, since FROM member_history ` +
+	var loadHistorySQL = `SELECT nickname, status, since, pending FROM member_history ` +
 		`WHERE committees_id = ? ` +
-		`ORDER BY nickname, unixepoch(since)`
-	rows, err := tx.QueryContext(ctx, loadHistorySQL, committeeID)
+		`ORDER BY nickname, unixepoch(since)` +
+		`LIMIT ?`
+	rows, err := tx.QueryContext(ctx, loadHistorySQL, committeeID, limit)
 	if err != nil {
 		return nil, fmt.Errorf("querying user histories failed: %w", err)
 	}
@@ -785,7 +836,7 @@ func LoadUsersHistoriesTx(
 	for rows.Next() {
 		var entry UserHistoryEntry
 		var nickname string
-		if err := rows.Scan(&nickname, &entry.Status, &entry.Since); err != nil {
+		if err := rows.Scan(&nickname, &entry.Status, &entry.Since, &entry.Pending); err != nil {
 			return nil, fmt.Errorf("scanning user histories failed: %w", err)
 		}
 		userHistories[nickname] = append(userHistories[nickname], &entry)
@@ -794,4 +845,55 @@ func LoadUsersHistoriesTx(
 		return nil, fmt.Errorf("querying user histories failed: %w", err)
 	}
 	return userHistories, nil
+}
+
+// UpdateUserHistoryEntryTx updates a single entry of the history of a user.
+func UpdateUserHistoryEntryTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	status MemberStatus,
+	nickname string,
+	since time.Time,
+	pending int,
+) error {
+	var updateHistoryEntrySQL = `UPDATE member_history ` +
+		`SET (status, pending) = (?, TRUE)` +
+		`WHERE nickname = ? AND since = ?`
+	if _, err := tx.ExecContext(ctx, updateHistoryEntrySQL, status, true, nickname, since); err != nil {
+		return fmt.Errorf("updating history entry failed: %w", err)
+	}
+	return nil
+}
+
+// AddUserHistoryEntryTx adds a single entry of the history of a user.
+func AddUserHistoryEntryTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	committeeID int64,
+	status MemberStatus,
+	nickname string,
+) error {
+	var insertHistoryEntrySQL = `INSERT INTO member_history ` +
+		`(nickname, committees_id, status, pending) VALUES ` +
+		`(?, ?, ?, TRUE)`
+	if _, err := tx.ExecContext(ctx, insertHistoryEntrySQL, nickname, committeeID, status); err != nil {
+		return fmt.Errorf("inserting history entry failed: %w", err)
+	}
+	return nil
+}
+
+// DeleteUserHistoryEntryTx deletes a single entry of the history of a user.
+func DeleteUserHistoryEntryTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	committeeID int64,
+	nickname string,
+	since time.Time,
+) error {
+	var deleteHistoryEntrySQL = `DELETE FROM member_history ` +
+		`WHERE committees_id = ? AND nickname = ? AND since = ?`
+	if _, err := tx.ExecContext(ctx, deleteHistoryEntrySQL, committeeID, nickname, since); err != nil {
+		return fmt.Errorf("deleting history entry failed: %w", err)
+	}
+	return nil
 }

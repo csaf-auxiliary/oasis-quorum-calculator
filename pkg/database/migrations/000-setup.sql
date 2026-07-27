@@ -61,6 +61,7 @@ CREATE TABLE member_history (
     committees_id INTEGER   NOT NULL REFERENCES committees(id) ON DELETE CASCADE,
     status        INTEGER   NOT NULL DEFAULT 0 REFERENCES member_status(id) ON DELETE CASCADE,
     since         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    pending       BOOLEAN   NOT NULL DEFAULT TRUE,
     UNIQUE(nickname, committees_id, since)
 );
 
@@ -80,7 +81,8 @@ CREATE TABLE meeting_status (
 INSERT INTO meeting_status (id, name, description) VALUES
     (0, 'onhold',  'Waiting to get started or paused'),
     (1, 'running', 'In progress'),
-    (2, 'concluded', 'Finalized');
+    (2, 'concluded', 'Finalized'),
+    (3, 'review', 'Changes have to be reviewed');
 
 CREATE TABLE meetings (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,

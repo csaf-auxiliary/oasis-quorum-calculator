@@ -20,8 +20,15 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
   <link rel="stylesheet" href="/static/styles/styles.css">
   <link rel="stylesheet" href="/static/styles/simple.min.css">
   <link rel="stylesheet" href="/static/styles/openmoji.css">
-  <script src="/static/js/htmx.min.js"></script>
   <title>OQC - OASIS Quorum Calculator</title>
+  <script>
+    window.addEventListener("load", () => {
+      Array.from(document.getElementsByClassName("onlyJavaScript")).forEach((element) => {
+        element.classList.remove("onlyJavaScript")
+      })
+    })
+  </script>
+  <script src="/static/js/htmx.min.js"></script>
 </head>
 <body>
   <header>
@@ -29,6 +36,9 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
     <nav>
       {{ if .User }}
         {{ $staff := .User.CountMemberships (Role "staff") }}
+        {{ if or .User.IsAdmin }}
+          <a href="/admin" class="onlyJavaScript">admin <span class="emojiom">&#x1F511;</span></a>
+        {{ end }}
         {{ if or .User.IsAdmin $staff }}
           <a href="/users?SESSIONID={{ .Session.ID }}">users <span class="emojiom">&#x1F465;</span></a>
         {{ end }}
@@ -77,10 +87,10 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 <th>Staff</th>
 <th>Secretary</th>
 <th>Chair</th>
+<th>Member</th>
 <th> Voting<br>Member </th>
 <th> Non-Voting<br>Member </th>
 <th> Persistent<br>Non-Voting<br>Member </th>
-<th>No Member</th>
 </thead>
 {{- end -}}
 
@@ -124,7 +134,6 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{ $statusVoting     := MemberStatus "voting" }}
 {{ $statusMember     := MemberStatus "member" }}
 {{ $statusNoneVoting := MemberStatus "nonevoting" }}
-{{ $statusNoMember   := MemberStatus "nomember" }}
 <table>
   {{ template "committees_table_header" }}
   <tbody>
@@ -139,21 +148,27 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
     {{ if $ms }}
     <td>
       <input type="checkbox"
-             name="role{{ .ID }}"
-             value="staff"
+             name="role_committee"
+             value="staff{{ .ID }}"
              {{ if $isStaff }}checked{{ end }}>
     </td>
     <td>
       <input type="checkbox"
-             name="role{{ .ID }}"
-             value="secretary"
+             name="role_committee"
+             value="secretary{{ .ID }}"
              {{ if $isSecretary }}checked{{ end }}>
     </td>
     <td>
       <input type="checkbox"
-             name="role{{ .ID }}"
-             value="chair"
+             name="role_committee"
+             value="chair{{ .ID }}"
              {{ if $isChair }}checked{{ end }}>
+    </td>
+    <td>
+      <input type="checkbox"
+             name="role_committee"
+             value="member{{ .ID }}"
+             {{ if $isMember }}checked{{ end }}>
     </td>
     <td>
       <input type="radio"
@@ -173,16 +188,11 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
              value="nonevoting"
              {{ if and $isMember (eq $ms.Status $statusNoneVoting) }}checked{{ end }}>
     </td>
-    <td>
-      <input type="radio"
-             name="status{{ .ID }}"
-             value="nomember"
-             {{ if or (not $isMember) (eq $ms.Status $statusNoMember) }}checked{{ end }}>
-    </td>
     {{ else }}
-    <td><input name="role{{ .ID }}" type="checkbox" value="staff"></td>
-    <td><input name="role{{ .ID }}" type="checkbox" value="secretary"></td>
-    <td><input name="role{{ .ID }}" type="checkbox" value="chair"></td>
+    <td><input name="role_committee" type="checkbox" value="staff{{ .ID }}"></td>
+    <td><input name="role_committee" type="checkbox" value="secretary{{ .ID }}"></td>
+    <td><input name="role_committee" type="checkbox" value="chair{{ .ID }}"></td>
+    <td><input name="role_committee" type="checkbox" value="member{{ .ID }}"></td>
     <td>
       <input type="radio" name="status{{ .ID }}" value="voting">
     </td>
@@ -191,9 +201,6 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
     </td>
     <td>
       <input type="radio" name="status{{ .ID }}" value="nonevoting">
-    </td>
-    <td>
-      <input type="radio" name="status{{ .ID }}" value="nomember" checked>
     </td>
     {{ end }}
   <tr>

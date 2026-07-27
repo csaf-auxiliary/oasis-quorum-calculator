@@ -17,6 +17,7 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{- $committeeName  := .Committee.Name }}
 {{- $onhold         := eq .Meeting.Status (MeetingStatus "onhold") }}
 {{- $running        := eq .Meeting.Status (MeetingStatus "running") }}
+{{- $inreview       := eq .Meeting.Status (MeetingStatus "review") }}
 {{- $alreadyRunning := .AlreadyRunning }}
 {{- $membership     := .User.MembershipByID ($committeeID)}}
 {{- $chair          := $membership.HasRole (Role "chair") }}
@@ -70,10 +71,11 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{ if or $running $alreadyRunning }}[Running]
 {{- else }}[<a href="/meeting_status_store?SESSIONID={{ $sessionID }}&meeting={{ $meetingID }}&committee={{ $committeeID }}&status=running">Run</a>]
 {{- end }}
-[<a href="/meeting_status_store?SESSIONID={{ $sessionID }}&meeting={{ $meetingID }}&committee={{ $committeeID }}&status=concluded">Conclude</a>]
+[<a href="/meeting_status_store?SESSIONID={{ $sessionID }}&meeting={{ $meetingID }}&committee={{ $committeeID }}&status=review">Conclude</a>]
 {{ end }}
 {{ else }}
 {{ if $concluded }}Concluded
+{{ else if $inreview }}Review
 {{ else if $onhold }}Waiting
 {{ else if $running }}Running
 {{ end }}

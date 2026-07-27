@@ -10,6 +10,7 @@ package web
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strconv"
 
@@ -75,4 +76,80 @@ func (c *Controller) memberAttend(w http.ResponseWriter, r *http.Request) {
 	default:
 		c.member(w, r)
 	}
+}
+
+func (c *Controller) memberStatusEdit(w http.ResponseWriter, r *http.Request) {
+	var (
+		committeeID, err = misc.Atoi64(r.FormValue("committee"))
+		nickname         = r.FormValue("nickname")
+		status           = r.FormValue("status")
+	)
+	if !checkParam(w, err) {
+		return
+	}
+	if nickname == "" {
+		return
+	}
+	if status == "" {
+		return
+	}
+	data := templateData{
+		"CommitteeID": committeeID,
+		"Nickname":    nickname,
+		"Status":      status,
+	}
+	check(w, r, c.htmxTmpls.ExecuteTemplate(w, "member_status_edit.tmpl", data))
+}
+
+func (c *Controller) memberStatusStore(w http.ResponseWriter, r *http.Request) {
+	var (
+		committeeID, err = misc.Atoi64(r.FormValue("committee"))
+		nickname         = r.FormValue("nickname")
+		status           = r.FormValue("status")
+		ctx              = r.Context()
+	)
+	if !checkParam(w, err) {
+		return
+	}
+	if nickname == "" || status == "" {
+		return
+	}
+
+	membershipStatus, err := models.ParseMemberStatus(status)
+	if err != nil {
+		return
+	}
+	db := c.db
+	tx, err := db.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return
+	}
+	defer tx.Rollback()
+	allUserHistories, err := models.LoadUsersHistoriesTx(ctx, tx, committeeID, 1000)
+	if err != nil {
+		return
+	}
+	userHistory := allUserHistories[nickname]
+	length := len(userHistory)
+	if length > 0 {
+		since := userHistory[len(userHistory)-1].Since
+		err = models.UpdateUserHistoryEntryTx(ctx, tx, membershipStatus, nickname, since, 1)
+	} else {
+		err = models.AddUserHistoryEntryTx(ctx, tx, committeeID, membershipStatus, nickname)
+	}
+	if err != nil {
+		log.Printf("updating membership status failed: %v", err.Error())
+		return
+	}
+
+	if err := tx.Commit(); err != nil {
+		log.Fatalf("updating temporary member status failed: %v", err)
+	}
+
+	data := templateData{
+		"CommitteeID": committeeID,
+		"Nickname":    nickname,
+		"Status":      membershipStatus,
+	}
+	check(w, r, c.htmxTmpls.ExecuteTemplate(w, "member_status_display.tmpl", data))
 }

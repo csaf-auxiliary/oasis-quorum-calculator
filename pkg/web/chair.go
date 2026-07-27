@@ -13,6 +13,7 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"slices"
 	"strings"
@@ -403,6 +404,7 @@ func (c *Controller) meetingStatusError(
 	var (
 		meetingID, err1   = misc.Atoi64(r.FormValue("meeting"))
 		committeeID, err2 = misc.Atoi64(r.FormValue("committee"))
+		meetingStatus, _  = models.ParseMeetingStatus(r.FormValue("status"))
 		ctx               = r.Context()
 	)
 	if !checkParam(w, err1, err2) {
@@ -512,6 +514,274 @@ func (c *Controller) meetingStatusError(
 		data.error(errMsg)
 	}
 
+	if meetingStatus == models.MeetingInReview {
+		histories, err := models.LoadUsersHistories(ctx, c.db, committeeID, 1)
+		if !check(w, r, err) {
+			return
+		}
+
+		prevStatus := map[string]models.MemberStatus{}
+		for _, member := range members {
+			nickname := member.Nickname
+			history := histories[nickname]
+			if len(history) > 0 {
+				lastEntry := *history[len(history)-1]
+				prevStatus[nickname] = lastEntry.Status
+			} else {
+				var membership models.Membership
+				for _, ms := range member.Memberships {
+					if ms.Committee.ID == committeeID {
+						membership = *ms
+					}
+				}
+				prevStatus[nickname] = membership.Status
+			}
+		}
+
+		data["PrevStatus"] = prevStatus
+		check(w, r, c.htmxTmpls.ExecuteTemplate(w, "meeting_review.tmpl", data))
+	} else {
+		check(w, r, c.tmpls.ExecuteTemplate(w, "meeting_status.tmpl", data))
+	}
+}
+
+func (c *Controller) meetingReview(w http.ResponseWriter, r *http.Request) {
+	var (
+		meetingID, err1   = misc.Atoi64(r.FormValue("meeting"))
+		committeeID, err2 = misc.Atoi64(r.FormValue("committee"))
+		ctx               = r.Context()
+	)
+	if !checkParam(w, err1, err2) {
+		return
+	}
+	meeting, err := models.LoadMeeting(ctx, c.db, meetingID, committeeID)
+	if !check(w, r, err) {
+		return
+	}
+	if meeting == nil {
+		c.chair(w, r)
+		return
+	}
+	members, err := models.LoadCommitteeUsers(ctx, c.db, committeeID, &meeting.StartTime)
+	if !check(w, r, err) {
+		return
+	}
+	attendees, err := meeting.Attendees(ctx, c.db)
+	if !check(w, r, err) {
+		return
+	}
+	committee, err := models.LoadCommittee(ctx, c.db, committeeID)
+	if !check(w, r, err) {
+		return
+	}
+	alreadyRunning, err := models.HasCommitteeRunningMeeting(ctx, c.db, committeeID)
+	if !check(w, r, err) {
+		return
+	}
+
+	var numVoters, attendingVoters, numNonVoters, numMembers int
+	for _, member := range members {
+		if ms := member.FindMembership(committee.Name); ms != nil &&
+			ms.HasRole(models.MemberRole) {
+			switch ms.Status {
+			case models.Voting:
+				numVoters++
+				if attendees[member.Nickname] {
+					attendingVoters++
+				}
+			case models.NoneVoting:
+				numNonVoters++
+			case models.Member:
+				numMembers++
+			}
+		}
+	}
+
+	quorum := models.Quorum{
+		Total:           len(members),
+		Member:          numMembers,
+		Voting:          numVoters,
+		AttendingVoting: attendingVoters,
+		Attending:       len(attendees),
+		NonVoting:       numNonVoters,
+	}
+
+	slices.SortFunc(members, (*models.User).Compare)
+
+	data := templateData{
+		"Session":        auth.SessionFromContext(ctx),
+		"User":           auth.UserFromContext(ctx),
+		"Meeting":        meeting,
+		"Members":        members,
+		"Attendees":      attendees,
+		"Quorum":         &quorum,
+		"Committee":      committee,
+		"AlreadyRunning": alreadyRunning,
+	}
+
+	histories, err := models.LoadUsersHistories(ctx, c.db, committeeID, 2)
+	if !check(w, r, err) {
+		return
+	}
+
+	prevStatus := map[string]models.MemberStatus{}
+	for _, member := range members {
+		nickname := member.Nickname
+		history := histories[nickname]
+
+		if len(history) > 0 {
+			lastEntry := *history[len(history)-1]
+			prevStatus[nickname] = lastEntry.Status
+		} else {
+			lastMembership := member.Memberships[len(member.Memberships)-1]
+			prevStatus[nickname] = lastMembership.Status
+		}
+	}
+	data["PrevStatus"] = prevStatus
+
+	slices.SortFunc(members, (*models.User).Compare)
+	check(w, r, c.htmxTmpls.ExecuteTemplate(w, "meeting_review.tmpl", data))
+}
+
+func (c *Controller) meetingFinish(w http.ResponseWriter, r *http.Request) {
+	var (
+		committeeID, err = misc.Atoi64(r.FormValue("committee"))
+		meetingID, err2  = misc.Atoi64(r.FormValue("meetingID"))
+		ctx              = r.Context()
+	)
+	if !checkParam(w, err, err2) {
+		return
+	}
+	db := c.db
+	tx, err := db.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return
+	}
+	defer tx.Rollback()
+
+	meeting, err := models.LoadMeeting(ctx, c.db, meetingID, committeeID)
+	if !check(w, r, err) {
+		return
+	}
+	if meeting == nil {
+		c.chair(w, r)
+		return
+	}
+	members, err := models.LoadCommitteeUsers(ctx, c.db, committeeID, &meeting.StartTime)
+	if !check(w, r, err) {
+		return
+	}
+	attendees, err := meeting.Attendees(ctx, c.db)
+	if !check(w, r, err) {
+		return
+	}
+	committee, err := models.LoadCommittee(ctx, c.db, committeeID)
+	if !check(w, r, err) {
+		return
+	}
+	alreadyRunning, err := models.HasCommitteeRunningMeeting(ctx, c.db, committeeID)
+	if !check(w, r, err) {
+		return
+	}
+
+	var numVoters, attendingVoters, numNonVoters, numMembers int
+	for _, member := range members {
+		if ms := member.FindMembership(committee.Name); ms != nil &&
+			ms.HasRole(models.MemberRole) {
+			switch ms.Status {
+			case models.Voting:
+				numVoters++
+				if attendees[member.Nickname] {
+					attendingVoters++
+				}
+			case models.NoneVoting:
+				numNonVoters++
+			case models.Member:
+				numMembers++
+			}
+		}
+	}
+
+	quorum := models.Quorum{
+		Total:           len(members),
+		Member:          numMembers,
+		Voting:          numVoters,
+		AttendingVoting: attendingVoters,
+		Attending:       len(attendees),
+		NonVoting:       numNonVoters,
+	}
+
+	slices.SortFunc(members, (*models.User).Compare)
+
+	histories, err := models.LoadUsersHistories(ctx, c.db, committeeID, 2)
+	if !check(w, r, err) {
+		return
+	}
+
+	for _, member := range members {
+		userHistory := histories[member.Nickname]
+		historyLength := len(userHistory)
+		var membership *models.Membership
+		var membershipIndex int
+		for i, ms := range member.Memberships {
+			if ms.Committee.ID == committeeID {
+				membership = ms
+				membershipIndex = i
+			}
+		}
+		if historyLength == 0 {
+			continue
+		}
+		if historyLength > 0 && userHistory[0].Pending {
+			if (historyLength == 1 && userHistory[0].Status == membership.Status) ||
+				(historyLength == 2 && userHistory[0].Status == userHistory[1].Status) {
+				err = models.DeleteUserHistoryEntryTx(ctx, tx, committeeID, member.Nickname, userHistory[0].Since)
+				if err != nil {
+					return
+				}
+			} else if (historyLength == 1 && userHistory[0].Status != membership.Status) ||
+				(historyLength == 2 && userHistory[0].Status != userHistory[1].Status) {
+				err = models.UpdateUserHistoryEntryTx(ctx, tx, userHistory[0].Status, member.Nickname, userHistory[0].Since, 0)
+				if err != nil {
+					return
+				}
+				membership.Status = userHistory[0].Status
+				member.Memberships[membershipIndex] = membership
+				err = models.UpdateMembershipsTx(ctx, tx, member.Nickname, slices.Values(member.Memberships))
+				if err != nil {
+					return
+				}
+			}
+		}
+	}
+	err = models.UpdateMeetingStatusTx(
+		ctx,
+		tx,
+		meetingID,
+		committeeID,
+		models.MeetingConcluded,
+		models.ChangeMeetingStatusPrecondition,
+		nil,
+		time.Now(),
+	)
+	if err != nil {
+		log.Printf("changing meeting status failed: %v", err)
+		return
+	}
+	data := templateData{
+		"Session":        auth.SessionFromContext(ctx),
+		"User":           auth.UserFromContext(ctx),
+		"Meeting":        meeting,
+		"Members":        members,
+		"Attendees":      attendees,
+		"Quorum":         &quorum,
+		"Committee":      committee,
+		"AlreadyRunning": alreadyRunning,
+	}
+	if err := tx.Commit(); err != nil {
+		log.Fatalf("finishing meeting failed: %v", err)
+	}
+	meeting.Status = models.MeetingConcluded
 	check(w, r, c.tmpls.ExecuteTemplate(w, "meeting_status.tmpl", data))
 }
 
@@ -534,9 +804,13 @@ func (c *Controller) meetingStatusStore(w http.ResponseWriter, r *http.Request) 
 
 	// Whether to use time.Now() or not
 	timer := misc.CalculateEndpoint(meeting.StartTime, meeting.StopTime)
-	switch err := models.ChangeMeetingStatus(
-		ctx, c.db,
-		meetingID, committeeID, meetingStatus,
+	switch err := models.UpdateMeetingStatus(
+		ctx,
+		c.db,
+		meetingID,
+		committeeID,
+		meetingStatus,
+		nil,
 		timer,
 	); {
 	case errors.Is(err, models.ErrAlreadyRunning):

@@ -17,6 +17,7 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{- $meetingOnHold    := MeetingStatus "onhold" }}
 {{- $meetingRunning   := MeetingStatus "running" }}
 {{- $meetingConcluded := MeetingStatus "concluded" }}
+{{- $meetingInReview := MeetingStatus "review" }}
 {{ range $user.CommitteesWithRole $chair $secretary $staff }}
 {{- $committeeID := .ID }}
 <fieldset>
@@ -45,11 +46,17 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
         <input type="checkbox" name="meetings" value="{{ .ID }}"></td>
         {{- end -}}
       <td>
-        <a href="/meeting_status?SESSIONID={{ $sessionID }}&meeting={{ .ID }}&committee={{ $committeeID }}">
-        {{- if      eq .Status $meetingOnHold }}Waiting
-        {{- else if eq .Status $meetingRunning }}<strong>Running</strong>
-        {{- else }}Concluded{{ end -}}
-        </a>
+        {{- if eq .Status $meetingInReview -}}
+          <a href="/meeting_review?&meeting={{ .ID }}&committee={{ $committeeID }}">
+            Review
+          </a>
+        {{- else }}
+          <a href="/meeting_status?SESSIONID={{ $sessionID }}&meeting={{ .ID }}&committee={{ $committeeID }}">
+          {{- if      eq .Status $meetingOnHold }}Waiting
+          {{- else if eq .Status $meetingRunning }}<strong>Running</strong>
+          {{- else }}Concluded{{ end -}}
+          </a>
+        {{ end -}}
       </td>
       <td>
         <a href="/meeting_edit?SESSIONID={{ $sessionID }}&meeting={{ .ID }}&committee={{ $committeeID }}"><time datetime="{{ .StartTime.UTC.Format "2006-01-02T15:04:05Z07:00" }}">{{ .StartTime.UTC.Format "2006-01-02 15:04 MST" }}</time></a>

@@ -1,0 +1,104 @@
+{{- /*
+This file is Free Software under the Apache-2.0 License
+without warranty, see README.md and LICENSE for details.
+
+SPDX-License-Identifier: Apache-2.0
+
+SPDX-FileCopyrightText: 2026 German Federal Office for Information Security (BSI) <https://www.bsi.bund.de>
+Software-Engineering: 2026 Intevation GmbH <https://intevation.de>
+*/ -}}
+{{ template "header" . }}
+{{ template "error" . }}
+{{- $meetingID      := .Meeting.ID }}
+{{- $attendees      := .Attendees }}
+{{- $prevStatus     := .PrevStatus }}
+{{- $committeeID    := .Committee.ID }}
+{{- $committeeName  := .Committee.Name }}
+{{- $membership     := .User.MembershipByID ($committeeID)}}
+{{- $chair          := $membership.HasRole (Role "chair") }}
+{{- $secretary      := $membership.HasRole (Role "secretary") }}
+{{- $staff          := $membership.HasRole (Role "staff") }}
+{{- $notOnlyMember  := or .User.IsAdmin $chair -}}
+{{- $userNickname   := .User.Nickname }}
+
+<p>
+<strong>Committee</strong>: {{ $committeeName }}<br>
+{{ with .Meeting }}
+ <strong>Meeting</strong>: <time datetime="{{ .StartTime.UTC.Format "2006-01-02T15:04:05Z07:00" }}">{{ .StartTime.UTC.Format "2006-01-02 15:04 MST" }}</time>/<time
+   datetime="{{ .Duration | DatetimeHoursMinutes }}">{{ .Duration | HoursMinutes }}</time><br>
+{{ if .Description }}<strong>Description</strong>: {{ .Description }}<br>{{ end }}
+{{ end }}
+<br>
+<strong>Quorum</strong>:
+<span class="{{ .Quorum.Number }} {{if .Quorum.Reached }}bg-reached{{else}}bg-notreached{{end}}">
+{{ if not .Quorum.Reached }}not {{ end }}reached</span>
+({{ .Quorum.Number }} of {{ .Quorum.Voting }} voting members needed)
+<br>
+<strong>Attending Voting Members</strong>:
+{{ .Quorum.AttendingVoting }} ({{ printf "%.1f" .Quorum.Percent }}%)
+<br>
+<strong>Status</strong>: Review
+{{ if .Members }}
+{{- $statusVoting     := MemberStatus "voting" }}
+{{- $statusMember     := MemberStatus "member" }}
+{{- $statusNoneVoting := MemberStatus "nonevoting" }}
+<form
+  action="/meeting_finish?committee={{ $committeeID }}&meetingID={{ $meetingID }}"
+  method="post"
+  accept-charset="UTF-8"
+>
+<table>
+<thead>
+  <tr>
+    <th>Attending</th>
+    <th>First name</th>
+    <th>Last name</th>
+    {{ if $notOnlyMember }}
+          <th>Login</th>
+    {{ end }}
+    <th>Previous<br>Status</th>
+    <th>New<br>Status</th>
+  </tr>
+</thead>
+<tbody id="#tbody">
+{{ range .Members }}
+  <tr>
+    <td>{{ if index $attendees .Nickname }}&check;{{ end }}</td>
+    <td>{{ if ne .Firstname nil }}{{ .Firstname }}{{ end }}</td>
+    <td>{{ if ne .Lastname nil }}{{ .Lastname }}{{ end }}</td>
+    {{ if $notOnlyMember }}
+        <td>{{ .Nickname }}</td>
+    {{ end }}
+    {{ $ms := .FindMembership $committeeName }}
+    <td>
+      {{- $prev := index $prevStatus .Nickname }}
+      {{ if eq $prev $statusVoting }}Voting Member
+      {{ else if eq $prev $statusMember }}Non-Voting Member
+      {{ else if eq $prev $statusNoneVoting}}Persistent<br>Non-Voting<br>Member
+      {{ else }}
+        -
+      {{ end }}
+    </td>
+    <td id="new-status-{{ .Nickname }}">
+      {{ template "member_status_display" Args "CommitteeID" $committeeID "Status" $ms.Status "Nickname" .Nickname }}
+    </td>
+  </tr>
+{{ end }}
+</tbody>
+<tfoot>
+  <tr>
+      <td>{{ .Quorum.Attending }}</td>
+      <td><strong>Total</strong>: {{ .Quorum.Total }}</td>
+      <td></td>
+    {{ if $notOnlyMember }}
+      <td></td>
+    {{ end }}
+      <td></td>
+      <td></td>
+  </tr>
+</tfoot>
+</table>
+<button>Confirm</button>
+</form>
+{{ end }}
+{{ template "footer" }}
