@@ -714,7 +714,7 @@ func LoadMeetingsOverview(
 		return nil, err
 	}
 
-	histories, err := LoadUsersHistoriesTx(ctx, tx, committeeID, 10000)
+	histories, err := LoadUsersHistoriesTx(ctx, tx, committeeID)
 	if err != nil {
 		return nil, err
 	}

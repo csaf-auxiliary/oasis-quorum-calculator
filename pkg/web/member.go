@@ -125,7 +125,7 @@ func (c *Controller) memberStatusStore(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer tx.Rollback()
-	allUserHistories, err := models.LoadUsersHistoriesTx(ctx, tx, committeeID, 1000)
+	allUserHistories, err := models.LoadUsersHistoriesTx(ctx, tx, committeeID)
 	if err != nil {
 		return
 	}

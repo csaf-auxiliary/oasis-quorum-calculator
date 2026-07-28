@@ -805,14 +805,13 @@ func LoadUsersHistories(
 	ctx context.Context,
 	db *database.Database,
 	committeeID int64,
-	limit int16,
 ) (UsersHistories, error) {
 	tx, err := db.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {
 		return nil, err
 	}
 	defer tx.Rollback()
-	return LoadUsersHistoriesTx(ctx, tx, committeeID, limit)
+	return LoadUsersHistoriesTx(ctx, tx, committeeID)
 }
 
 // LoadUsersHistoriesTx loads the histories of the users of a committee.
@@ -820,13 +819,11 @@ func LoadUsersHistoriesTx(
 	ctx context.Context,
 	tx *sql.Tx,
 	committeeID int64,
-	limit int16,
 ) (UsersHistories, error) {
 	var loadHistorySQL = `SELECT nickname, status, since, pending FROM member_history ` +
 		`WHERE committees_id = ? ` +
-		`ORDER BY nickname, unixepoch(since)` +
-		`LIMIT ?`
-	rows, err := tx.QueryContext(ctx, loadHistorySQL, committeeID, limit)
+		`ORDER BY nickname, unixepoch(since)`
+	rows, err := tx.QueryContext(ctx, loadHistorySQL, committeeID)
 	if err != nil {
 		return nil, fmt.Errorf("querying user histories failed: %w", err)
 	}

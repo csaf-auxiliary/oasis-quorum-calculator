@@ -515,7 +515,7 @@ func (c *Controller) meetingStatusError(
 	}
 
 	if meetingStatus == models.MeetingInReview {
-		histories, err := models.LoadUsersHistories(ctx, c.db, committeeID, 1)
+		histories, err := models.LoadUsersHistories(ctx, c.db, committeeID)
 		if !check(w, r, err) {
 			return
 		}
@@ -524,17 +524,12 @@ func (c *Controller) meetingStatusError(
 		for _, member := range members {
 			nickname := member.Nickname
 			history := histories[nickname]
-			if len(history) > 0 {
-				lastEntry := *history[len(history)-1]
-				prevStatus[nickname] = lastEntry.Status
-			} else {
-				var membership models.Membership
-				for _, ms := range member.Memberships {
-					if ms.Committee.ID == committeeID {
-						membership = *ms
-					}
-				}
-				prevStatus[nickname] = membership.Status
+			if len(history) == 1 {
+				prevEntry := *history[len(history)-1]
+				prevStatus[nickname] = prevEntry.Status
+			} else if len(history) > 1 {
+				prevEntry := *history[len(history)-2]
+				prevStatus[nickname] = prevEntry.Status
 			}
 		}
 
@@ -619,7 +614,7 @@ func (c *Controller) meetingReview(w http.ResponseWriter, r *http.Request) {
 		"AlreadyRunning": alreadyRunning,
 	}
 
-	histories, err := models.LoadUsersHistories(ctx, c.db, committeeID, 2)
+	histories, err := models.LoadUsersHistories(ctx, c.db, committeeID)
 	if !check(w, r, err) {
 		return
 	}
@@ -629,12 +624,12 @@ func (c *Controller) meetingReview(w http.ResponseWriter, r *http.Request) {
 		nickname := member.Nickname
 		history := histories[nickname]
 
-		if len(history) > 0 {
-			lastEntry := *history[len(history)-1]
-			prevStatus[nickname] = lastEntry.Status
-		} else {
-			lastMembership := member.Memberships[len(member.Memberships)-1]
-			prevStatus[nickname] = lastMembership.Status
+		if len(history) == 1 {
+			prevEntry := *history[len(history)-1]
+			prevStatus[nickname] = prevEntry.Status
+		} else if len(history) > 1 {
+			prevEntry := *history[len(history)-2]
+			prevStatus[nickname] = prevEntry.Status
 		}
 	}
 	data["PrevStatus"] = prevStatus
@@ -713,7 +708,7 @@ func (c *Controller) meetingFinish(w http.ResponseWriter, r *http.Request) {
 
 	slices.SortFunc(members, (*models.User).Compare)
 
-	histories, err := models.LoadUsersHistories(ctx, c.db, committeeID, 2)
+	histories, err := models.LoadUsersHistories(ctx, c.db, committeeID)
 	if !check(w, r, err) {
 		return
 	}
@@ -721,33 +716,20 @@ func (c *Controller) meetingFinish(w http.ResponseWriter, r *http.Request) {
 	for _, member := range members {
 		userHistory := histories[member.Nickname]
 		historyLength := len(userHistory)
-		var membership *models.Membership
-		var membershipIndex int
-		for i, ms := range member.Memberships {
-			if ms.Committee.ID == committeeID {
-				membership = ms
-				membershipIndex = i
-			}
-		}
 		if historyLength == 0 {
 			continue
 		}
-		if historyLength > 0 && userHistory[0].Pending {
-			if (historyLength == 1 && userHistory[0].Status == membership.Status) ||
-				(historyLength == 2 && userHistory[0].Status == userHistory[1].Status) {
-				err = models.DeleteUserHistoryEntryTx(ctx, tx, committeeID, member.Nickname, userHistory[0].Since)
+		lastHistoryEntry := userHistory[historyLength-1]
+		if lastHistoryEntry.Pending {
+			if historyLength == 1 || lastHistoryEntry.Status != userHistory[historyLength-2].Status {
+				// If there is only one entry or if the status did change we want to persist the new status
+				err = models.UpdateUserHistoryEntryTx(ctx, tx, lastHistoryEntry.Status, member.Nickname, lastHistoryEntry.Since, 0)
 				if err != nil {
 					return
 				}
-			} else if (historyLength == 1 && userHistory[0].Status != membership.Status) ||
-				(historyLength == 2 && userHistory[0].Status != userHistory[1].Status) {
-				err = models.UpdateUserHistoryEntryTx(ctx, tx, userHistory[0].Status, member.Nickname, userHistory[0].Since, 0)
-				if err != nil {
-					return
-				}
-				membership.Status = userHistory[0].Status
-				member.Memberships[membershipIndex] = membership
-				err = models.UpdateMembershipsTx(ctx, tx, member.Nickname, slices.Values(member.Memberships))
+			} else if lastHistoryEntry.Status == userHistory[historyLength-2].Status {
+				// If the status didn't change we have to remove the latest entry if it's pending
+				err = models.DeleteUserHistoryEntryTx(ctx, tx, committeeID, member.Nickname, lastHistoryEntry.Since)
 				if err != nil {
 					return
 				}
