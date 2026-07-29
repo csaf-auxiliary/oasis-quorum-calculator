@@ -51,7 +51,7 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{ if .Description }}<strong>Description</strong>: {{ .Description }}<br>{{ end }}
 {{ end }}
 <br>
-{{ if $gathering }}<strong>This is only a gathering meeting!<strong>
+{{ if $gathering }}<strong>This is only a gathering meeting!</strong>
 {{ else }}
 <strong>Quorum</strong>:
 <span class="{{ .Quorum.Number }} {{if .Quorum.Reached }}bg-reached{{else}}bg-notreached{{end}}">
