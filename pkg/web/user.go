@@ -81,7 +81,7 @@ func (c *Controller) usersStore(w http.ResponseWriter, r *http.Request) {
 		filter := misc.Filter(slices.Values(r.Form["users"]), func(nickname string) bool {
 			return nickname != "admin" && nickname != me
 		})
-		if !check(w, r, models.DeleteUsersByNickname(r.Context(), c.db, filter)) {
+		if !check(w, r, models.AnonymizeUsersByNickname(r.Context(), c.db, filter)) {
 			return
 		}
 	}

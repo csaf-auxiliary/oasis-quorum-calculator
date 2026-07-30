@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"iter"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -437,8 +438,8 @@ func LoadAllUsers(ctx context.Context, db *database.Database) ([]*User, error) {
 	return users, nil
 }
 
-// DeleteUsersByNickname deletes users by their nicknames.
-func DeleteUsersByNickname(
+// AnonymizeUsersByNickname anonymizes users by their nicknames.
+func AnonymizeUsersByNickname(
 	ctx context.Context,
 	db *database.Database,
 	nicknames iter.Seq[string],
@@ -448,9 +449,33 @@ func DeleteUsersByNickname(
 		return nil
 	}
 	defer tx.Rollback()
-	const deleteSQL = `DELETE FROM users WHERE nickname = ?`
+	var latestAnonNickname string
+	const getAnonSQL = `SELECT nickname FROM users ` +
+		`WHERE nickname LIKE 'anonymous________' ORDER BY nickname DESC LIMIT 1`
+	if err := tx.QueryRowContext(ctx, getAnonSQL).Scan(&latestAnonNickname); err != nil {
+		if !errors.Is(err, sql.ErrNoRows) {
+			return fmt.Errorf("deleting users failed: %w", err)
+		}
+	}
+	var newAnonNickname string
+	// New first- and lastname have to contain at least one space. Otherwise SQLITE returns null when querying them
+	// and this leads to problems in other places of the application.
+	const updateSQL = `UPDATE users SET nickname = ?, firstname = ' ', lastname = ' ', password = '' WHERE nickname = ?`
 	for nickname := range nicknames {
-		if _, err := tx.ExecContext(ctx, deleteSQL, nickname); err != nil {
+		if latestAnonNickname == "" {
+			newAnonNickname = "anonymous00000001"
+		} else {
+			splitted := strings.Split(latestAnonNickname, "anonymous")
+			count, err := strconv.ParseInt(splitted[1], 0, 0)
+			if err != nil {
+				return fmt.Errorf("could not parse of latest anonymized user: %w", err)
+			}
+			newCount := int(count) + 1
+			paddedNewCount := fmt.Sprintf("%08d", newCount)
+			newAnonNickname = fmt.Sprint("anonymous", paddedNewCount)
+		}
+		latestAnonNickname = newAnonNickname
+		if _, err := tx.ExecContext(ctx, updateSQL, newAnonNickname, nickname); err != nil {
 			return fmt.Errorf("deleting users failed: %w", err)
 		}
 	}
