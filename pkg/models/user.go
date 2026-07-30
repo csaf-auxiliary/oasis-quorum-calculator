@@ -279,6 +279,7 @@ func LoadUser(ctx context.Context, db *database.Database, nickname string, befor
 	return loadUserTx(ctx, tx, nickname, before)
 }
 
+// loadBasicUserTx loads a user with a ID from the database.
 func loadBasicUserTx(
 	ctx context.Context,
 	tx *sql.Tx,
@@ -303,6 +304,7 @@ func loadBasicUserTx(
 	return &user, nil
 }
 
+// loadUserTx loads a user with a ID from the database.
 func loadUserTx(
 	ctx context.Context,
 	tx *sql.Tx,
