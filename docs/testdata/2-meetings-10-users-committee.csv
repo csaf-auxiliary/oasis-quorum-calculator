@@ -1,0 +1,11 @@
+Status,Role,Name,2025-03-01,2025-02-12
+Voter,Voting Member,User Name1,User Name1,User Name1
+Non-voter,Member,User Name2,User Name2,User Name2
+Voter,Voting Member,User Name3,,User Name3
+Voter,Voting Member,User Name4,,
+Non-voter,Member,User Name5,User Name5,
+Voter,Voting Member,User Name6,,
+Voter,Chair,User Name7,User Name7,User Name7
+Voter,Secretary,User Name8,,User Name8
+Non-voter,Member,User Name9,User Name9,
+Non-voter,Voting Member,User Name10,User Name10,User Name10
