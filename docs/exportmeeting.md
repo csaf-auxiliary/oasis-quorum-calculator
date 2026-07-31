@@ -21,10 +21,13 @@ The tool supports exporting data for all meetings or for a specific committee.
 
 The generated CSV file is structured with:
 
-- **First row**: The start date of each meeting in `YYYY-MM-DD` format.
+- **First cell**: The start date of each meeting in `YYYY-MM-DD` format.
 
-- **Subsequent rows**: Names of attendees, aligned under the meetings they attended. Each row represents the nth
-  attendee across all meetings.
+- **Following cells** contains attendees or metadata:
+    - `(informational)` indicates gathering only, no decision-making
+    - `Description: `... optional meeting note
+    - `Stop-Time: `... specifies meeting ending
+    - `Name (Leave of absence)` marks absence
 
 For example:
 

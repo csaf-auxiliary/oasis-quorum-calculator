@@ -13,7 +13,7 @@
 ## Overview
 
 The `importcommittee` is a command-line application that reads a CSV file containing committee membership and meeting
-attendance data and imports it into th SQLite database used by the Quorum Calculator. This tool helps to import
+attendance data and imports it into the SQLite database used by the Quorum Calculator. This tool helps to import
 historical meeting data.
 
 ### CSV Format
@@ -31,8 +31,12 @@ The CSV file should be structured as follows:
     - **Role**: `Voting Member`, `Member`, `Chair`, `Secretary`
     - **Name**: The username of the member
 - **Remaining columns** represents meetings:
-    - Header is da date in `YYYY-MM-DD` format.
-    - Each subsequent cell lists the name of a participant if they attended the meeting.
+    - Header is the date in `YYYY-MM-DD` format.
+    - **Following cells** contains attendees or metadata:
+        - `(informational)` indicates gathering only, no decision-making
+        - `Description: `... optional meeting note
+        - `Stop-Time: `... specifies meeting ending
+        - `Name (Leave of absence)` marks absence
 
 ## Command-Line Usage
 
