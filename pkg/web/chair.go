@@ -641,7 +641,7 @@ func (c *Controller) meetingReview(w http.ResponseWriter, r *http.Request) {
 func (c *Controller) meetingFinish(w http.ResponseWriter, r *http.Request) {
 	var (
 		committeeID, err = misc.Atoi64(r.FormValue("committee"))
-		meetingID, err2  = misc.Atoi64(r.FormValue("meetingID"))
+		meetingID, err2  = misc.Atoi64(r.FormValue("meeting"))
 		ctx              = r.Context()
 	)
 	if !checkParam(w, err, err2) {
@@ -666,48 +666,6 @@ func (c *Controller) meetingFinish(w http.ResponseWriter, r *http.Request) {
 	if !check(w, r, err) {
 		return
 	}
-	attendees, err := meeting.Attendees(ctx, c.db)
-	if !check(w, r, err) {
-		return
-	}
-	committee, err := models.LoadCommittee(ctx, c.db, committeeID)
-	if !check(w, r, err) {
-		return
-	}
-	alreadyRunning, err := models.HasCommitteeRunningMeeting(ctx, c.db, committeeID)
-	if !check(w, r, err) {
-		return
-	}
-
-	var numVoters, attendingVoters, numNonVoters, numMembers int
-	for _, member := range members {
-		if ms := member.FindMembership(committee.Name); ms != nil &&
-			ms.HasRole(models.MemberRole) {
-			switch ms.Status {
-			case models.Voting:
-				numVoters++
-				if attendees[member.Nickname] {
-					attendingVoters++
-				}
-			case models.NoneVoting:
-				numNonVoters++
-			case models.Member:
-				numMembers++
-			}
-		}
-	}
-
-	quorum := models.Quorum{
-		Total:           len(members),
-		Member:          numMembers,
-		Voting:          numVoters,
-		AttendingVoting: attendingVoters,
-		Attending:       len(attendees),
-		NonVoting:       numNonVoters,
-	}
-
-	slices.SortFunc(members, (*models.User).Compare)
-
 	histories, err := models.LoadUsersHistories(ctx, c.db, committeeID)
 	if !check(w, r, err) {
 		return
@@ -750,21 +708,11 @@ func (c *Controller) meetingFinish(w http.ResponseWriter, r *http.Request) {
 		log.Printf("changing meeting status failed: %v", err)
 		return
 	}
-	data := templateData{
-		"Session":        auth.SessionFromContext(ctx),
-		"User":           auth.UserFromContext(ctx),
-		"Meeting":        meeting,
-		"Members":        members,
-		"Attendees":      attendees,
-		"Quorum":         &quorum,
-		"Committee":      committee,
-		"AlreadyRunning": alreadyRunning,
-	}
 	if err := tx.Commit(); err != nil {
-		log.Fatalf("finishing meeting failed: %v", err)
+		log.Printf("finishing meeting failed: %v", err)
+		return
 	}
-	meeting.Status = models.MeetingConcluded
-	check(w, r, c.tmpls.ExecuteTemplate(w, "meeting_status.tmpl", data))
+	c.meetingStatus(w, r)
 }
 
 func (c *Controller) meetingStatusStore(w http.ResponseWriter, r *http.Request) {

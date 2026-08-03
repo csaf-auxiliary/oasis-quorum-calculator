@@ -42,8 +42,9 @@ Software-Engineering: 2026 Intevation GmbH <https://intevation.de>
 {{- $statusVoting     := MemberStatus "voting" }}
 {{- $statusMember     := MemberStatus "member" }}
 {{- $statusNoneVoting := MemberStatus "nonevoting" }}
+{{- $condluded        := MeetingStatus "concluded" }}
 <form
-  action="/meeting_finish?committee={{ $committeeID }}&meetingID={{ $meetingID }}"
+  action="/meeting_finish?status={{ $condluded }}&committee={{ $committeeID }}&meeting={{ $meetingID }}"
   method="post"
   accept-charset="UTF-8"
 >
