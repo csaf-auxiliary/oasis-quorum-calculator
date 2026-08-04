@@ -265,7 +265,7 @@ func UpdateMeetingStatusTx(
 		return fmt.Errorf("cannot determine meeting status change: %w", err)
 	}
 	if n == 1 && onSuccess != nil {
-		if err := onSuccess(ctx, tx, meetingStatus, committeeID, meetingID, timer); err != nil {
+		if err := onSuccess(ctx, tx, meetingStatus, meetingID, committeeID, timer); err != nil {
 			return err
 		}
 	}
