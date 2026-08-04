@@ -162,7 +162,7 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{ end }}
 </fieldset>
 {{ end }}
-{{ if $showHistories }}
+{{ if and $showHistories $concluded  }}
   {{ template "committee_status_updates" Args "Histories" $histories "Members" .Members }}
 {{ end }}
 {{ template "footer" }}
