@@ -850,7 +850,7 @@ func UpdateUserHistoryEntryTx(
 	status MemberStatus,
 	nickname string,
 	since time.Time,
-	pending int,
+	pending bool,
 ) error {
 	var updateHistoryEntrySQL = `UPDATE member_history ` +
 		`SET (status, pending) = (?, ?)` +

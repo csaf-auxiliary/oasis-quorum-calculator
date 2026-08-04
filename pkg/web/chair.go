@@ -681,7 +681,7 @@ func (c *Controller) meetingFinish(w http.ResponseWriter, r *http.Request) {
 		if lastHistoryEntry.Pending {
 			if historyLength == 1 || lastHistoryEntry.Status != userHistory[historyLength-2].Status {
 				// If there is only one entry or if the status did change we want to persist the new status
-				err = models.UpdateUserHistoryEntryTx(ctx, tx, lastHistoryEntry.Status, member.Nickname, lastHistoryEntry.Since, 0)
+				err = models.UpdateUserHistoryEntryTx(ctx, tx, lastHistoryEntry.Status, member.Nickname, lastHistoryEntry.Since, false)
 				if err != nil {
 					return
 				}

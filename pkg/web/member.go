@@ -133,7 +133,7 @@ func (c *Controller) memberStatusStore(w http.ResponseWriter, r *http.Request) {
 	length := len(userHistory)
 	if length > 0 {
 		since := userHistory[len(userHistory)-1].Since
-		err = models.UpdateUserHistoryEntryTx(ctx, tx, membershipStatus, nickname, since, 1)
+		err = models.UpdateUserHistoryEntryTx(ctx, tx, membershipStatus, nickname, since, true)
 	} else {
 		err = models.AddUserHistoryEntryTx(ctx, tx, committeeID, membershipStatus, nickname)
 	}
