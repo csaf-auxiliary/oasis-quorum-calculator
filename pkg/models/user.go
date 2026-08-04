@@ -854,7 +854,7 @@ func UpdateUserHistoryEntryTx(
 ) error {
 	var updateHistoryEntrySQL = `UPDATE member_history ` +
 		`SET (status, pending) = (?, ?)` +
-		`WHERE nickname = ? AND since = ?`
+		`WHERE nickname = ? AND unixepoch(since) = unixepoch(?)`
 	if _, err := tx.ExecContext(ctx, updateHistoryEntrySQL, status, pending, nickname, since); err != nil {
 		return fmt.Errorf("updating history entry failed: %w", err)
 	}
@@ -887,7 +887,7 @@ func DeleteUserHistoryEntryTx(
 	since time.Time,
 ) error {
 	var deleteHistoryEntrySQL = `DELETE FROM member_history ` +
-		`WHERE committees_id = ? AND nickname = ? AND since = ?`
+		`WHERE committees_id = ? AND nickname = ? AND unixepoch(since) = unixepoch(?)`
 	if _, err := tx.ExecContext(ctx, deleteHistoryEntrySQL, committeeID, nickname, since); err != nil {
 		return fmt.Errorf("deleting history entry failed: %w", err)
 	}
