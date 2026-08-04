@@ -1,0 +1,46 @@
+{{- /*
+This file is Free Software under the Apache-2.0 License
+without warranty, see README.md and LICENSE for details.
+
+SPDX-License-Identifier: Apache-2.0
+
+SPDX-FileCopyrightText: 2026 German Federal Office for Information Security (BSI) <https://www.bsi.bund.de>
+Software-Engineering: 2026 Intevation GmbH <https://intevation.de>
+*/ -}}
+
+{{- define "committee_status_updates" -}}
+{{- $members        := .Members }}
+{{- $histories        := .Histories }}
+
+<fieldset>
+    <legend>Status changes</legend>
+    {{ if $histories }}
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Login</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{ range $members }}
+          {{- $nickname := .Nickname }}
+          {{- $userTrail := index $histories .Nickname }}
+          {{ range $userTrail }}
+            <tr>
+              <td>
+                <time datetime="{{ .Since.UTC.Format "2006-01-02T15:04:05Z07:00" }}">{{ .Since.Format "2006-01-02 15:04 MST" }}</time>
+              </td>
+              <td>{{ $nickname }}</td>
+              <td>{{ .Status }}</td>
+            </tr>
+          {{ end }}
+        {{ end }}
+        </tbody>
+      </table>
+    {{ else }}
+      <i>No changes</i>
+    {{ end }}
+  </fieldset>
+{{- end -}}

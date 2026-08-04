@@ -500,6 +500,45 @@ func (c *Controller) meetingStatusError(
 		return a.Compare(b.User)
 	})
 
+	usersHistories, err := models.LoadUsersHistories(ctx, c.db, committeeID)
+	if !check(w, r, err) {
+		return
+	}
+	prevMeetingID, hasPrev, err := models.PreviousMeeting(ctx, c.db, meetingID)
+	if !check(w, r, err) {
+		return
+	}
+	var prevMeeting *models.Meeting
+	if prevMeetingID != 0 {
+		prevMeeting, err = models.LoadMeeting(ctx, c.db, meetingID, committeeID)
+		if err != nil {
+			err = fmt.Errorf("loading previous meeting failed: %w", err)
+		}
+	}
+
+	filteredHistories := map[string]models.UserHistory{}
+	prevStatus := map[string]models.MemberStatus{}
+	for _, member := range historicalUsers {
+		nickname := member.Nickname
+		history := usersHistories[nickname]
+		filteredHistories[nickname] = []*models.UserHistoryEntry{}
+		for _, entry := range history {
+			if !hasPrev || (hasPrev && prevMeeting.StartTime.UnixMilli() < entry.Since.UnixMilli()) {
+				filteredHistories[nickname] = append(filteredHistories[nickname], entry)
+			}
+		}
+		if len(filteredHistories[nickname]) == 0 {
+			delete(filteredHistories, nickname)
+		}
+		if len(history) == 1 {
+			prevEntry := *history[len(history)-1]
+			prevStatus[nickname] = prevEntry.Status
+		} else if len(history) > 1 {
+			prevEntry := *history[len(history)-2]
+			prevStatus[nickname] = prevEntry.Status
+		}
+	}
+
 	data := templateData{
 		"Session":        auth.SessionFromContext(ctx),
 		"User":           auth.UserFromContext(ctx),
@@ -509,30 +548,14 @@ func (c *Controller) meetingStatusError(
 		"Quorum":         &quorum,
 		"Committee":      committee,
 		"AlreadyRunning": alreadyRunning,
+		"PrevStatus":     prevStatus,
+		"Histories":      filteredHistories,
 	}
 	if errMsg != "" {
 		data.error(errMsg)
 	}
 
 	if meetingStatus == models.MeetingInReview {
-		histories, err := models.LoadUsersHistories(ctx, c.db, committeeID)
-		if !check(w, r, err) {
-			return
-		}
-
-		prevStatus := map[string]models.MemberStatus{}
-		for _, member := range members {
-			nickname := member.Nickname
-			history := histories[nickname]
-			if len(history) == 1 {
-				prevEntry := *history[len(history)-1]
-				prevStatus[nickname] = prevEntry.Status
-			} else if len(history) > 1 {
-				prevEntry := *history[len(history)-2]
-				prevStatus[nickname] = prevEntry.Status
-			}
-		}
-
 		data["PrevStatus"] = prevStatus
 		check(w, r, c.htmxTmpls.ExecuteTemplate(w, "meeting_review.tmpl", data))
 	} else {

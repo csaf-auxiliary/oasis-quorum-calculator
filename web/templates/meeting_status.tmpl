@@ -27,6 +27,8 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{- $concluded      := eq .Meeting.Status (MeetingStatus "concluded") }}
 {{- $notOnlyMember  := or .User.IsAdmin $chair -}}
 {{- $userNickname   := .User.Nickname }}
+{{- $histories      := .Histories }}
+{{- $showHistories  := $notOnlyMember }}
 
 {{- if $running }}
 <p><a href="/meeting_status?SESSIONID={{ $sessionID }}&meeting={{ $meetingID }}&committee={{ $committeeID }}"
@@ -159,5 +161,8 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 </form>
 {{ end }}
 </fieldset>
+{{ end }}
+{{ if $showHistories }}
+  {{ template "committee_status_updates" Args "Histories" $histories "Members" .Members }}
 {{ end }}
 {{ template "footer" }}
