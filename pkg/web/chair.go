@@ -27,16 +27,27 @@ import (
 func (c *Controller) chair(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	user := auth.UserFromContext(ctx)
+	committees := misc.Map(user.Committees(), (*models.Committee).GetID)
 	meetings, err := models.LoadMeetings(
 		ctx, c.db,
 		misc.Map(user.Committees(), (*models.Committee).GetID))
 	if !check(w, r, err) {
 		return
 	}
+	committeesMembers := make(map[int64][]*models.User)
+	for co := range committees {
+		users, err := models.LoadCommitteeUsers(ctx, c.db, co, nil)
+		if !check(w, r, err) {
+			return
+		}
+		committeesMembers[co] = users
+	}
+
 	data := templateData{
-		"Session":  auth.SessionFromContext(ctx),
-		"User":     user,
-		"Meetings": meetings,
+		"Session":           auth.SessionFromContext(ctx),
+		"User":              user,
+		"Meetings":          meetings,
+		"CommitteesMembers": committeesMembers,
 	}
 	check(w, r, c.tmpls.ExecuteTemplate(w, "chair.tmpl", data))
 }

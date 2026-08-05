@@ -8,16 +8,17 @@ SPDX-FileCopyrightText: 2025 German Federal Office for Information Security (BSI
 Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 */ -}}
 {{ template "header" . }}
-{{- $sessionID := .Session.ID }}
-{{- $meetings  := .Meetings }}
-{{- $chair     := Role "chair" }}
-{{- $secretary := Role "secretary" }}
-{{- $staff := Role "staff" }}
-{{- $user      := .User }}
-{{- $meetingOnHold    := MeetingStatus "onhold" }}
-{{- $meetingRunning   := MeetingStatus "running" }}
-{{- $meetingConcluded := MeetingStatus "concluded" }}
-{{- $meetingInReview := MeetingStatus "review" }}
+{{- $sessionID           := .Session.ID }}
+{{- $meetings            := .Meetings }}
+{{- $committeesMembers   := .CommitteesMembers }}
+{{- $chair               := Role "chair" }}
+{{- $secretary           := Role "secretary" }}
+{{- $staff               := Role "staff" }}
+{{- $user                := .User }}
+{{- $meetingOnHold       := MeetingStatus "onhold" }}
+{{- $meetingRunning      := MeetingStatus "running" }}
+{{- $meetingConcluded    := MeetingStatus "concluded" }}
+{{- $meetingInReview     := MeetingStatus "review" }}
 {{ range $user.CommitteesWithRole $chair $secretary $staff }}
 {{- $committeeID := .ID }}
 <fieldset>
@@ -73,6 +74,28 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
   <input type="reset" value="Reset">
   </form>
   {{ end }}
+  <table>
+    <thead>
+      <tr>
+        <th>Login</th>
+        <th>Firstname</th>
+        <th>Lastname</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {{- $committeeMembers := index $committeesMembers $committeeID }}
+      {{ range $committeeMembers }}
+        {{- $ms := $user.MembershipByID $committeeID }}
+        <tr>
+          <td>{{ .Nickname }}</td>
+          <td>{{ .Firstname }}</td>
+          <td>{{ .Lastname }}</td>
+          <td>{{ $ms.Status.Label }}</td>
+        </tr>
+      {{ end }}
+    </tbody>
+  </table>
 </fieldset>
 {{ end }}
 {{ template "footer" }}
