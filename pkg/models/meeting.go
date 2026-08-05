@@ -609,21 +609,6 @@ func MeetingAttendeesTx(
 	return attendees, nil
 }
 
-// PreviousMeeting returns the id of the meeting before the given meeting.
-// Returns false as the second value if there isn't any.
-func PreviousMeeting(
-	ctx context.Context,
-	db *database.Database,
-	meetingID int64,
-) (int64, bool, error) {
-	tx, err := db.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
-	if err != nil {
-		return 0, false, err
-	}
-	defer tx.Rollback()
-	return PreviousMeetingTx(ctx, tx, meetingID)
-}
-
 // PreviousMeetingTx returns the id of the meeting before the given meeting.
 // Returns false as the second value if there isn't any.
 func PreviousMeetingTx(

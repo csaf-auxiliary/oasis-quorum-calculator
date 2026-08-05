@@ -527,33 +527,17 @@ func (c *Controller) meetingStatusError(
 	if !check(w, r, err) {
 		return
 	}
-	prevMeetingID, hasPrev, err := models.PreviousMeeting(ctx, c.db, meetingID)
-	if !check(w, r, err) {
-		return
-	}
-	var prevMeeting *models.Meeting
-	if prevMeetingID != 0 {
-		prevMeeting, err = models.LoadMeeting(ctx, c.db, meetingID, committeeID)
-		if err != nil {
-			err = fmt.Errorf("loading previous meeting failed: %w", err)
-		}
-	}
-
-	filteredHistories := map[string]models.UserHistory{}
+	histories := map[string]models.MemberStatus{}
 	prevStatus := map[string]models.MemberStatus{}
 	newStatus := map[string]models.MemberStatus{}
 	for _, member := range historicalUsers {
 		nickname := member.Nickname
 		history := usersHistories[nickname]
-		filteredHistories[nickname] = []*models.UserHistoryEntry{}
-		for _, entry := range history {
-			if !hasPrev || (hasPrev && prevMeeting.StartTime.UnixMilli() < entry.Since.UnixMilli()) {
-				filteredHistories[nickname] = append(filteredHistories[nickname], entry)
-			}
+		status, _, err := models.UserMemberStatusSince(ctx, c.db, nickname, meeting.CommitteeID, meeting.StopTime)
+		if !check(w, r, err) {
+			return
 		}
-		if len(filteredHistories[nickname]) == 0 {
-			delete(filteredHistories, nickname)
-		}
+		histories[nickname] = status
 		prev, new := getPrevNewMemberStatus(history)
 		prevStatus[nickname] = prev
 		newStatus[nickname] = new
@@ -570,7 +554,7 @@ func (c *Controller) meetingStatusError(
 		"AlreadyRunning": alreadyRunning,
 		"PrevStatus":     prevStatus,
 		"NewStatus":      newStatus,
-		"Histories":      filteredHistories,
+		"Histories":      histories,
 	}
 	if errMsg != "" {
 		data.error(errMsg)

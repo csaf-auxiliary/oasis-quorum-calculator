@@ -724,6 +724,23 @@ func IsUserExcusedFromMeetingTx(
 	return isExcused, nil
 }
 
+// UserMemberStatusSince figures out the member status
+// for a given user in a committee after a given point in time.
+// Returns false the user was not in the committee at this time.
+func UserMemberStatusSince(
+	ctx context.Context,
+	db *database.Database,
+	nickname string, committeeID int64,
+	when time.Time,
+) (MemberStatus, bool, error) {
+	tx, err := db.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
+	if err != nil {
+		return 0, false, err
+	}
+	defer tx.Rollback()
+	return UserMemberStatusSinceTx(ctx, tx, nickname, committeeID, when)
+}
+
 // UserMemberStatusSinceTx figures out the member status
 // for a given user in a committee after a given point in time.
 // Returns false the user was not in the committee at this time.

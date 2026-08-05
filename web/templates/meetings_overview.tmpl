@@ -105,6 +105,36 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{ if $data }}
   {{- $histories := .Overview.UsersHistories  }}
   {{- $users     := .Overview.Users           }}
-  {{ template "committee_status_updates" Args "Histories" $histories "Members" $users }}
+  <fieldset>
+    <legend>Status changes</legend>
+    {{ if $histories }}
+      <table>
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Login</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{ range $users }}
+          {{- $nickname := .Nickname }}
+          {{- $userTrail := index $histories .Nickname }}
+          {{ range $userTrail }}
+            <tr>
+              <td>
+                <time datetime="{{ .Since.UTC.Format "2006-01-02T15:04:05Z07:00" }}">{{ .Since.Format "2006-01-02 15:04 MST" }}</time>
+              </td>
+              <td>{{ $nickname }}</td>
+              <td>{{ .Status }}</td>
+            </tr>
+          {{ end }}
+        {{ end }}
+        </tbody>
+      </table>
+    {{ else }}
+      <i>No changes</i>
+    {{ end }}
+  </fieldset>
 {{ end }}
 {{ template "footer" }}

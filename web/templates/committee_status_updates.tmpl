@@ -18,24 +18,18 @@ Software-Engineering: 2026 Intevation GmbH <https://intevation.de>
       <table>
         <thead>
           <tr>
-            <th>Date</th>
             <th>Login</th>
-            <th>Status</th>
+            <th>New Status</th>
           </tr>
         </thead>
         <tbody>
           {{ range $members }}
           {{- $nickname := .Nickname }}
-          {{- $userTrail := index $histories .Nickname }}
-          {{ range $userTrail }}
-            <tr>
-              <td>
-                <time datetime="{{ .Since.UTC.Format "2006-01-02T15:04:05Z07:00" }}">{{ .Since.Format "2006-01-02 15:04 MST" }}</time>
-              </td>
-              <td>{{ $nickname }}</td>
-              <td>{{ .Status }}</td>
-            </tr>
-          {{ end }}
+          {{- $status := index $histories .Nickname }}
+          <tr>
+            <td>{{ $nickname }}</td>
+            <td>{{ $status.Label }}</td>
+          </tr>
         {{ end }}
         </tbody>
       </table>
