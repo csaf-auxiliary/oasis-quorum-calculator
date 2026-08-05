@@ -12,6 +12,7 @@ Software-Engineering: 2026 Intevation GmbH <https://intevation.de>
 {{- $meetingID      := .Meeting.ID }}
 {{- $attendees      := .Attendees }}
 {{- $prevStatus     := .PrevStatus }}
+{{- $newStatus      := .NewStatus }}
 {{- $committeeID    := .Committee.ID }}
 {{- $committeeName  := .Committee.Name }}
 {{- $membership     := .User.MembershipByID ($committeeID)}}
@@ -81,7 +82,7 @@ Software-Engineering: 2026 Intevation GmbH <https://intevation.de>
       {{ end }}
     </td>
     <td id="new-status-{{ .Nickname }}">
-      {{ template "member_status_display" Args "CommitteeID" $committeeID "Status" $ms.Status "Nickname" .Nickname }}
+      {{ template "member_status_display" Args "CommitteeID" $committeeID "Status" (index $newStatus .Nickname) "Nickname" .Nickname }}
     </td>
   </tr>
 {{ end }}

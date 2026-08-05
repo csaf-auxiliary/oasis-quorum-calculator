@@ -131,7 +131,7 @@ func (c *Controller) memberStatusStore(w http.ResponseWriter, r *http.Request) {
 	}
 	userHistory := allUserHistories[nickname]
 	length := len(userHistory)
-	if length > 0 {
+	if length > 0 && userHistory[len(userHistory)-1].Pending {
 		since := userHistory[len(userHistory)-1].Since
 		err = models.UpdateUserHistoryEntryTx(ctx, tx, membershipStatus, nickname, since, true)
 	} else {

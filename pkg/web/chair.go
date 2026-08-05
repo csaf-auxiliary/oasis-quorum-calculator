@@ -396,6 +396,29 @@ func (c *Controller) meetingStatus(w http.ResponseWriter, r *http.Request) {
 	c.meetingStatusError(w, r, "")
 }
 
+func getPrevNewMemberStatus(history models.UserHistory) (models.MemberStatus, models.MemberStatus) {
+	var (
+		prevStatus models.MemberStatus
+		newStatus  models.MemberStatus
+	)
+	if len(history) == 1 {
+		entry := *history[len(history)-1]
+		prevStatus = entry.Status
+		newStatus = entry.Status
+	} else if len(history) > 1 {
+		prevEntry := *history[len(history)-2]
+		latestEntry := *history[len(history)-1]
+		if !latestEntry.Pending {
+			// It might be that no new (pending) entry was made by OQC itself yet
+			prevStatus = latestEntry.Status
+		} else {
+			prevStatus = prevEntry.Status
+		}
+		newStatus = latestEntry.Status
+	}
+	return prevStatus, newStatus
+}
+
 func (c *Controller) meetingStatusError(
 	w http.ResponseWriter,
 	r *http.Request,
@@ -518,6 +541,7 @@ func (c *Controller) meetingStatusError(
 
 	filteredHistories := map[string]models.UserHistory{}
 	prevStatus := map[string]models.MemberStatus{}
+	newStatus := map[string]models.MemberStatus{}
 	for _, member := range historicalUsers {
 		nickname := member.Nickname
 		history := usersHistories[nickname]
@@ -530,13 +554,9 @@ func (c *Controller) meetingStatusError(
 		if len(filteredHistories[nickname]) == 0 {
 			delete(filteredHistories, nickname)
 		}
-		if len(history) == 1 {
-			prevEntry := *history[len(history)-1]
-			prevStatus[nickname] = prevEntry.Status
-		} else if len(history) > 1 {
-			prevEntry := *history[len(history)-2]
-			prevStatus[nickname] = prevEntry.Status
-		}
+		prev, new := getPrevNewMemberStatus(history)
+		prevStatus[nickname] = prev
+		newStatus[nickname] = new
 	}
 
 	data := templateData{
@@ -549,6 +569,7 @@ func (c *Controller) meetingStatusError(
 		"Committee":      committee,
 		"AlreadyRunning": alreadyRunning,
 		"PrevStatus":     prevStatus,
+		"NewStatus":      newStatus,
 		"Histories":      filteredHistories,
 	}
 	if errMsg != "" {
@@ -626,6 +647,21 @@ func (c *Controller) meetingReview(w http.ResponseWriter, r *http.Request) {
 
 	slices.SortFunc(members, (*models.User).Compare)
 
+	histories, err := models.LoadUsersHistories(ctx, c.db, committeeID)
+	if !check(w, r, err) {
+		return
+	}
+
+	prevStatus := map[string]models.MemberStatus{}
+	newStatus := map[string]models.MemberStatus{}
+	for _, member := range members {
+		nickname := member.Nickname
+		history := histories[nickname]
+		prev, new := getPrevNewMemberStatus(history)
+		prevStatus[nickname] = prev
+		newStatus[nickname] = new
+	}
+
 	data := templateData{
 		"Session":        auth.SessionFromContext(ctx),
 		"User":           auth.UserFromContext(ctx),
@@ -634,28 +670,10 @@ func (c *Controller) meetingReview(w http.ResponseWriter, r *http.Request) {
 		"Attendees":      attendees,
 		"Quorum":         &quorum,
 		"Committee":      committee,
+		"PrevStatus":     prevStatus,
+		"NewStatus":      newStatus,
 		"AlreadyRunning": alreadyRunning,
 	}
-
-	histories, err := models.LoadUsersHistories(ctx, c.db, committeeID)
-	if !check(w, r, err) {
-		return
-	}
-
-	prevStatus := map[string]models.MemberStatus{}
-	for _, member := range members {
-		nickname := member.Nickname
-		history := histories[nickname]
-
-		if len(history) == 1 {
-			prevEntry := *history[len(history)-1]
-			prevStatus[nickname] = prevEntry.Status
-		} else if len(history) > 1 {
-			prevEntry := *history[len(history)-2]
-			prevStatus[nickname] = prevEntry.Status
-		}
-	}
-	data["PrevStatus"] = prevStatus
 
 	slices.SortFunc(members, (*models.User).Compare)
 	check(w, r, c.htmxTmpls.ExecuteTemplate(w, "meeting_review.tmpl", data))
@@ -763,7 +781,7 @@ func (c *Controller) meetingStatusStore(w http.ResponseWriter, r *http.Request) 
 		meetingID,
 		committeeID,
 		meetingStatus,
-		nil,
+		models.ApplyUpDowngrades,
 		timer,
 	); {
 	case errors.Is(err, models.ErrAlreadyRunning):
