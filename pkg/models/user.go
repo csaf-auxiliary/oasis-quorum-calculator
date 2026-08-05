@@ -884,12 +884,13 @@ func AddUserHistoryEntryTx(
 	tx *sql.Tx,
 	committeeID int64,
 	status MemberStatus,
+	since time.Time,
 	nickname string,
 ) error {
 	var insertHistoryEntrySQL = `INSERT INTO member_history ` +
-		`(nickname, committees_id, status, pending) VALUES ` +
+		`(nickname, committees_id, status, since, pending) VALUES ` +
 		`(?, ?, ?, TRUE)`
-	if _, err := tx.ExecContext(ctx, insertHistoryEntrySQL, nickname, committeeID, status); err != nil {
+	if _, err := tx.ExecContext(ctx, insertHistoryEntrySQL, nickname, committeeID, status, since); err != nil {
 		return fmt.Errorf("inserting history entry failed: %w", err)
 	}
 	return nil

@@ -82,7 +82,7 @@ Software-Engineering: 2026 Intevation GmbH <https://intevation.de>
       {{ end }}
     </td>
     <td id="new-status-{{ .Nickname }}">
-      {{ template "member_status_display" Args "CommitteeID" $committeeID "Status" (index $newStatus .Nickname) "Nickname" .Nickname }}
+      {{ template "member_status_display" Args "CommitteeID" $committeeID "MeetingID" $meetingID "Status" (index $newStatus .Nickname) "Nickname" .Nickname }}
     </td>
   </tr>
 {{ end }}

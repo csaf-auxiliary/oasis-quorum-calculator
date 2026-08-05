@@ -9,6 +9,7 @@ Software-Engineering: 2026 Intevation GmbH <https://intevation.de>
 */ -}}
 
 {{- $committeeID        := .CommitteeID }}
+{{- $meetingID          := .MeetingID }}
 {{- $nickname           := .Nickname }}
 {{- $status             := .Status }}
 {{- $statusVoting       := MemberStatus "voting" }}
@@ -17,7 +18,7 @@ Software-Engineering: 2026 Intevation GmbH <https://intevation.de>
 {{- $preSelectedStatus  := .PreSelectedStatus }}
 
 <form
-    hx-post="/member_status_store?committee={{ $committeeID }}&nickname={{ $nickname }}"
+    hx-post="/member_status_store?committee={{ $committeeID }}&meeting={{ $meetingID }}&nickname={{ $nickname }}"
     hx-target="#new-status-{{ $nickname }}"
 >
     <select name="status">

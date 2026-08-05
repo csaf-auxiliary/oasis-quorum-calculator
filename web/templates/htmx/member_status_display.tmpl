@@ -10,6 +10,7 @@ Software-Engineering: 2026 Intevation GmbH <https://intevation.de>
 
 {{- define "member_status_display" -}}
 {{- $committeeID        := .CommitteeID }}
+{{- $meetingID          := .MeetingID }}
 {{- $nickname           := .Nickname }}
 {{- $status             := .Status }}
 {{- $statusVoting       := MemberStatus "voting" }}
@@ -23,7 +24,7 @@ Software-Engineering: 2026 Intevation GmbH <https://intevation.de>
     {{ end }}
 </span>
 <button
-    hx-get="/member_status_edit?status={{ $status }}&committee={{ $committeeID }}&nickname={{ $nickname    }}"
+    hx-get="/member_status_edit?status={{ $status }}&committee={{ $committeeID }}&meeting={{ $meetingID }}&nickname={{ $nickname    }}"
     hx-target="#new-status-{{ .Nickname }}"
 >
 Edit

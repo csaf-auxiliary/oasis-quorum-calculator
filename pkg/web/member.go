@@ -80,11 +80,12 @@ func (c *Controller) memberAttend(w http.ResponseWriter, r *http.Request) {
 
 func (c *Controller) memberStatusEdit(w http.ResponseWriter, r *http.Request) {
 	var (
-		committeeID, err = misc.Atoi64(r.FormValue("committee"))
-		nickname         = r.FormValue("nickname")
-		status           = r.FormValue("status")
+		committeeID, err1 = misc.Atoi64(r.FormValue("committee"))
+		meetingID, err2   = misc.Atoi64(r.FormValue("meeting"))
+		nickname          = r.FormValue("nickname")
+		status            = r.FormValue("status")
 	)
-	if !checkParam(w, err) {
+	if !checkParam(w, err1, err2) {
 		return
 	}
 	if nickname == "" {
@@ -95,6 +96,7 @@ func (c *Controller) memberStatusEdit(w http.ResponseWriter, r *http.Request) {
 	}
 	data := templateData{
 		"CommitteeID": committeeID,
+		"MeetingID":   meetingID,
 		"Nickname":    nickname,
 		"Status":      status,
 	}
@@ -103,12 +105,13 @@ func (c *Controller) memberStatusEdit(w http.ResponseWriter, r *http.Request) {
 
 func (c *Controller) memberStatusStore(w http.ResponseWriter, r *http.Request) {
 	var (
-		committeeID, err = misc.Atoi64(r.FormValue("committee"))
-		nickname         = r.FormValue("nickname")
-		status           = r.FormValue("status")
-		ctx              = r.Context()
+		committeeID, err1 = misc.Atoi64(r.FormValue("committee"))
+		meetingID, err2   = misc.Atoi64(r.FormValue("meeting"))
+		nickname          = r.FormValue("nickname")
+		status            = r.FormValue("status")
+		ctx               = r.Context()
 	)
-	if !checkParam(w, err) {
+	if !checkParam(w, err1, err2) {
 		return
 	}
 	if nickname == "" || status == "" {
@@ -135,7 +138,12 @@ func (c *Controller) memberStatusStore(w http.ResponseWriter, r *http.Request) {
 		since := userHistory[len(userHistory)-1].Since
 		err = models.UpdateUserHistoryEntryTx(ctx, tx, membershipStatus, nickname, since, true)
 	} else {
-		err = models.AddUserHistoryEntryTx(ctx, tx, committeeID, membershipStatus, nickname)
+		meeting, err := models.LoadMeeting(ctx, c.db, meetingID, committeeID)
+		if !check(w, r, err) {
+			return
+		}
+		updateTime := misc.CalculateEndpoint(meeting.StartTime, meeting.StopTime)
+		err = models.AddUserHistoryEntryTx(ctx, tx, committeeID, membershipStatus, updateTime, nickname)
 	}
 	if err != nil {
 		log.Printf("updating membership status failed: %v", err.Error())
@@ -148,6 +156,7 @@ func (c *Controller) memberStatusStore(w http.ResponseWriter, r *http.Request) {
 
 	data := templateData{
 		"CommitteeID": committeeID,
+		"MeetingID":   meetingID,
 		"Nickname":    nickname,
 		"Status":      membershipStatus,
 	}
