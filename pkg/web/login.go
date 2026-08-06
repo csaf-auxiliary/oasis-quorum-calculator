@@ -11,7 +11,6 @@ package web
 import (
 	"net/http"
 	"net/url"
-	"regexp"
 	"time"
 
 	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/auth"
@@ -41,12 +40,8 @@ func (c *Controller) login(w http.ResponseWriter, r *http.Request) {
 		c.authFailed(w, r, "", "Missing user name")
 		return
 	}
-	anonUserReg, err := regexp.Compile(`^anonymous\d{8}$`)
-	if err != nil {
-		return
-	}
-	isAnon := anonUserReg.Match([]byte(nickname))
-	if isAnon {
+	user, err := models.LoadUser(r.Context(), c.db, nickname, nil)
+	if err != nil || !user.Active {
 		c.authFailed(w, r, nickname, "Login failed")
 		return
 	}

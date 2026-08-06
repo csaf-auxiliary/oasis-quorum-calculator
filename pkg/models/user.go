@@ -15,8 +15,8 @@ import (
 	"errors"
 	"fmt"
 	"iter"
+	"maps"
 	"slices"
-	"strconv"
 	"strings"
 	"time"
 
@@ -67,6 +67,7 @@ type User struct {
 	IsAdmin     bool
 	Memberships []*Membership
 	Password    *string
+	Active      bool
 }
 
 // HistoricalUser links a user to a Memberstatus
@@ -287,7 +288,7 @@ func loadBasicUserTx(
 ) (*User, error) {
 	// Collect user details
 	user := User{Nickname: nickname}
-	const userSQL = `SELECT firstname, lastname, is_admin ` +
+	const userSQL = `SELECT firstname, lastname, is_admin, active ` +
 		`FROM users ` +
 		`WHERE nickname = ?`
 
@@ -295,6 +296,7 @@ func loadBasicUserTx(
 		&user.Firstname,
 		&user.Lastname,
 		&user.IsAdmin,
+		&user.Active,
 	); {
 	case errors.Is(err, sql.ErrNoRows):
 		return nil, nil
@@ -415,7 +417,7 @@ func (u *User) Store(ctx context.Context, db *database.Database) error {
 // LoadAllUsers loads all user ordered by their nickname.
 func LoadAllUsers(ctx context.Context, db *database.Database) ([]*User, error) {
 	var users []*User
-	const loadSQL = `SELECT nickname, firstname, lastname, is_admin FROM users ` +
+	const loadSQL = `SELECT nickname, firstname, lastname, is_admin, active FROM users ` +
 		`ORDER BY nickname`
 	rows, err := db.DB.QueryContext(ctx, loadSQL)
 	if err != nil {
@@ -429,6 +431,7 @@ func LoadAllUsers(ctx context.Context, db *database.Database) ([]*User, error) {
 			&user.Firstname,
 			&user.Lastname,
 			&user.IsAdmin,
+			&user.Active,
 		); err != nil {
 			return nil, fmt.Errorf("scanning users failed: %w", err)
 		}
@@ -440,8 +443,8 @@ func LoadAllUsers(ctx context.Context, db *database.Database) ([]*User, error) {
 	return users, nil
 }
 
-// AnonymizeUsersByNickname anonymizes users by their nicknames.
-func AnonymizeUsersByNickname(
+// DeactivateUsersByNickname deactivates users by their nicknames.
+func DeactivateUsersByNickname(
 	ctx context.Context,
 	db *database.Database,
 	nicknames iter.Seq[string],
@@ -451,33 +454,19 @@ func AnonymizeUsersByNickname(
 		return nil
 	}
 	defer tx.Rollback()
-	var latestAnonNickname string
-	const getAnonSQL = `SELECT nickname FROM users ` +
-		`WHERE nickname LIKE 'anonymous________' ORDER BY nickname DESC LIMIT 1`
-	if err := tx.QueryRowContext(ctx, getAnonSQL).Scan(&latestAnonNickname); err != nil {
-		if !errors.Is(err, sql.ErrNoRows) {
-			return fmt.Errorf("deleting users failed: %w", err)
-		}
-	}
-	var newAnonNickname string
-	// New first- and lastname have to contain at least one space. Otherwise SQLITE returns null when querying them
-	// and this leads to problems in other places of the application.
-	const updateSQL = `UPDATE users SET nickname = ?, firstname = ' ', lastname = ' ', password = '' WHERE nickname = ?`
+	const deactivateSQL = `UPDATE users SET password = '', active = FALSE WHERE nickname = ?`
 	for nickname := range nicknames {
-		if latestAnonNickname == "" {
-			newAnonNickname = "anonymous00000001"
-		} else {
-			splitted := strings.Split(latestAnonNickname, "anonymous")
-			count, err := strconv.ParseInt(splitted[1], 0, 0)
-			if err != nil {
-				return fmt.Errorf("could not parse of latest anonymized user: %w", err)
-			}
-			newCount := int(count) + 1
-			paddedNewCount := fmt.Sprintf("%08d", newCount)
-			newAnonNickname = fmt.Sprint("anonymous", paddedNewCount)
+		user, err := loadUserTx(ctx, tx, nickname, nil)
+		if err != nil {
+			return fmt.Errorf("loading user failed: %w", err)
 		}
-		latestAnonNickname = newAnonNickname
-		if _, err := tx.ExecContext(ctx, updateSQL, newAnonNickname, nickname); err != nil {
+		memberships := map[int64]*Membership{}
+		for _, ms := range user.Memberships {
+			memberships[ms.Committee.ID] = ms
+			ms.Status = NoMember
+		}
+		UpdateMembershipsTx(ctx, tx, nickname, maps.Values(memberships))
+		if _, err := tx.ExecContext(ctx, deactivateSQL, nickname); err != nil {
 			return fmt.Errorf("deleting users failed: %w", err)
 		}
 	}
@@ -526,6 +515,20 @@ func UpdateMemberships(
 		return err
 	}
 	defer tx.Rollback()
+	err = UpdateMembershipsTx(ctx, tx, nickname, memberships)
+	if err != nil {
+		return err
+	}
+	return tx.Commit()
+}
+
+// UpdateMembershipsTx updates the memberships of the user with a given nickname.
+func UpdateMembershipsTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	nickname string,
+	memberships iter.Seq[*Membership],
+) error {
 
 	// Identify committees the member was part of before being removed
 	const queryCommitteesSQL = `SELECT DISTINCT committees_id FROM committee_roles WHERE nickname = ?`
@@ -643,7 +646,7 @@ func UpdateMemberships(
 			}
 		}
 	}
-	return tx.Commit()
+	return nil
 }
 
 // LoadCommitteeUsers loads all users of a committee.
