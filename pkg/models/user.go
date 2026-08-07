@@ -418,6 +418,7 @@ func (u *User) Store(ctx context.Context, db *database.Database) error {
 func LoadAllUsers(ctx context.Context, db *database.Database) ([]*User, error) {
 	var users []*User
 	const loadSQL = `SELECT nickname, firstname, lastname, is_admin, active FROM users ` +
+		`WHERE active = TRUE ` +
 		`ORDER BY nickname`
 	rows, err := db.DB.QueryContext(ctx, loadSQL)
 	if err != nil {
