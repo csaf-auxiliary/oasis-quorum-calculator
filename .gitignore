@@ -24,3 +24,11 @@ go.work.sum
 
 # env file
 .env
+
+# files created by oqc at runtime
+*.log
+*.sqlite
+
+# configs that are not part of the documentation
+*.toml
+!docs/example-oqcd.toml
