@@ -596,7 +596,6 @@ func (c *Controller) meetingStatusError(
 	}
 
 	if meetingStatus == models.MeetingInReview {
-		data["PrevStatus"] = prevStatus
 		check(w, r, c.htmxTmpls.ExecuteTemplate(w, "meeting_review.tmpl", data))
 	} else {
 		check(w, r, c.tmpls.ExecuteTemplate(w, "meeting_status.tmpl", data))
