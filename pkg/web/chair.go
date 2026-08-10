@@ -559,7 +559,6 @@ func (c *Controller) meetingStatusError(
 		return a.Compare(b.User)
 	})
 
-	usersHistories, err := models.LoadUsersHistories(ctx, c.db, committeeID)
 	if !check(w, r, err) {
 		return
 	}
@@ -568,7 +567,7 @@ func (c *Controller) meetingStatusError(
 	newStatus := map[string]models.MemberStatus{}
 	for _, member := range historicalUsers {
 		nickname := member.Nickname
-		history := usersHistories[nickname]
+		history := allUsersHistories[nickname]
 		status, _, err := models.UserMemberStatusSince(ctx, c.db, nickname, meeting.CommitteeID, meeting.StopTime)
 		if !check(w, r, err) {
 			return
