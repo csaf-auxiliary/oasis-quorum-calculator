@@ -86,7 +86,7 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
     <tbody>
       {{- $committeeMembers := index $committeesMembers $committeeID }}
       {{ range $committeeMembers }}
-        {{- $ms := $user.MembershipByID $committeeID }}
+        {{- $ms := .MembershipByID $committeeID }}
         <tr>
           <td>{{ .Nickname }}</td>
           <td>{{ .Firstname }}</td>
