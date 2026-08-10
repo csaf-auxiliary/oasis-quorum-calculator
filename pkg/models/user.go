@@ -508,13 +508,15 @@ func UpdateMemberships(
 	db *database.Database,
 	nickname string,
 	memberships iter.Seq[*Membership],
+	meetingID *int64,
+	decisionMaker *string,
 ) error {
 	tx, err := db.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	UpdateMembershipsTx(ctx, tx, nickname, memberships)
+	UpdateMembershipsTx(ctx, tx, nickname, memberships, meetingID, decisionMaker)
 	return tx.Commit()
 }
 
@@ -524,6 +526,8 @@ func UpdateMembershipsTx(
 	tx *sql.Tx,
 	nickname string,
 	memberships iter.Seq[*Membership],
+	meetingID *int64,
+	decisionMaker *string,
 ) error {
 
 	// Identify committees the member was part of before being removed
@@ -563,8 +567,8 @@ func UpdateMembershipsTx(
 			`WHERE nickname = ? AND committees_id = ? ` +
 			`ORDER BY unixepoch(since) DESC LIMIT 1`
 		insertStatusSQL = `INSERT INTO member_history ` +
-			`(nickname, committees_id, status, since, pending) ` +
-			`VALUES (?, ?, ?, ?, FALSE)`
+			`(nickname, committees_id, status, since, pending, decision_reason, decision_maker) ` +
+			`VALUES (?, ?, ?, ?, FALSE, ?, ?)`
 	)
 	var insertRoleStmt, queryStatusStmt, insertStatusStmt *sql.Stmt
 
@@ -610,7 +614,15 @@ func UpdateMembershipsTx(
 		}
 		// Insert NoMember if the previous status was not NoMember
 		if status != NoMember {
-			if _, err := insertStatusStmt.ExecContext(ctx, nickname, committeeID, NoMember, now); err != nil {
+			if _, err := insertStatusStmt.ExecContext(
+				ctx,
+				nickname,
+				committeeID,
+				NoMember,
+				now,
+				meetingID,
+				decisionMaker,
+			); err != nil {
 				return fmt.Errorf("inserting NoMember for committee %d failed: %w", committeeID, err)
 			}
 		}
@@ -637,7 +649,14 @@ func UpdateMembershipsTx(
 		// Only insert new one if it differs from the previous.
 		if status != ms.Status {
 			if _, err := insertStatusStmt.ExecContext(
-				ctx, nickname, ms.Committee.ID, ms.Status, now); err != nil {
+				ctx,
+				nickname,
+				ms.Committee.ID,
+				ms.Status,
+				now,
+				meetingID,
+				decisionMaker,
+			); err != nil {
 				return fmt.Errorf("inserting status failed: %w", err)
 			}
 		}
@@ -886,11 +905,22 @@ func AddUserHistoryEntryTx(
 	status MemberStatus,
 	since time.Time,
 	nickname string,
+	meetingID int64,
+	decisionMaker string,
 ) error {
 	var insertHistoryEntrySQL = `INSERT INTO member_history ` +
-		`(nickname, committees_id, status, since, pending) VALUES ` +
+		`(nickname, committees_id, status, since, pending, decision_reason, decision_maker) VALUES ` +
 		`(?, ?, ?, TRUE)`
-	if _, err := tx.ExecContext(ctx, insertHistoryEntrySQL, nickname, committeeID, status, since); err != nil {
+	if _, err := tx.ExecContext(
+		ctx,
+		insertHistoryEntrySQL,
+		nickname,
+		committeeID,
+		status,
+		since,
+		meetingID,
+		decisionMaker,
+	); err != nil {
 		return fmt.Errorf("inserting history entry failed: %w", err)
 	}
 	return nil

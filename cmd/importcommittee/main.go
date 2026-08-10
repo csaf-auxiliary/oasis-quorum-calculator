@@ -266,7 +266,14 @@ func run(committee, csv, databaseURL string) error {
 			Status:    user.initialStatus,
 			Roles:     []models.Role{user.initialRole},
 		}
-		if err := models.UpdateMemberships(ctx, db, user.name, misc.Values(ms)); err != nil {
+		if err := models.UpdateMemberships(
+			ctx,
+			db,
+			user.name,
+			misc.Values(ms),
+			nil,
+			nil,
+		); err != nil {
 			return err
 		}
 	}

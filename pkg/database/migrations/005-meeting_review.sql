@@ -12,4 +12,10 @@ INSERT INTO meeting_status (id, name, description) VALUES
 ALTER TABLE member_history ADD COLUMN
     pending      BOOLEAN   NOT NULL DEFAULT TRUE;
 
+ALTER TABLE member_history ADD COLUMN
+    decision_reason INTEGER   REFERENCES meetings(id);
+
+ALTER TABLE member_history ADD COLUMN
+    decision_maker  VARCHAR   REFERENCES users(nickname);
+
 UPDATE member_history SET pending = TRUE;

@@ -111,6 +111,7 @@ func (c *Controller) memberStatusStore(w http.ResponseWriter, r *http.Request) {
 		status            = r.FormValue("status")
 		ctx               = r.Context()
 	)
+	user := auth.UserFromContext(ctx)
 	if !checkParam(w, err1, err2) {
 		return
 	}
@@ -143,7 +144,16 @@ func (c *Controller) memberStatusStore(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		updateTime := misc.CalculateEndpoint(meeting.StartTime, meeting.StopTime)
-		err = models.AddUserHistoryEntryTx(ctx, tx, committeeID, membershipStatus, updateTime, nickname)
+		err = models.AddUserHistoryEntryTx(
+			ctx,
+			tx,
+			committeeID,
+			membershipStatus,
+			updateTime,
+			nickname,
+			meetingID,
+			user.Nickname,
+		)
 	}
 	if err != nil {
 		log.Printf("updating membership status failed: %v", err.Error())

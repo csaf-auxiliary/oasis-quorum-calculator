@@ -57,11 +57,13 @@ INSERT INTO member_status (id, name, description) VALUES
     (3, 'nomember', 'Not a member');
 
 CREATE TABLE member_history (
-    nickname      VARCHAR   NOT NULL,
-    committees_id INTEGER   NOT NULL REFERENCES committees(id) ON DELETE CASCADE,
-    status        INTEGER   NOT NULL DEFAULT 0 REFERENCES member_status(id) ON DELETE CASCADE,
-    since         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    pending       BOOLEAN   NOT NULL DEFAULT TRUE,
+    nickname        VARCHAR   NOT NULL,
+    committees_id   INTEGER   NOT NULL REFERENCES committees(id) ON DELETE CASCADE,
+    status          INTEGER   NOT NULL DEFAULT 0 REFERENCES member_status(id) ON DELETE CASCADE,
+    since           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    pending         BOOLEAN   NOT NULL DEFAULT TRUE,
+    decision_reason INTEGER   REFERENCES meetings(id),
+    decision_maker  VARCHAR   REFERENCES users(nickname),
     UNIQUE(nickname, committees_id, since)
 );
 
