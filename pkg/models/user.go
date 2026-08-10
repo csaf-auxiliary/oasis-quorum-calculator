@@ -76,9 +76,11 @@ type HistoricalUser struct {
 
 // UserHistoryEntry is a point in time afterUpdateMemberships this status applys.
 type UserHistoryEntry struct {
-	Since   time.Time
-	Status  MemberStatus
-	Pending bool
+	Since          time.Time
+	Status         MemberStatus
+	Pending        bool
+	DecisionReason *int64
+	DecisionMaker  *string
 }
 
 // UserHistory is a list of status values over time.
@@ -856,7 +858,7 @@ func LoadUsersHistoriesTx(
 	tx *sql.Tx,
 	committeeID int64,
 ) (UsersHistories, error) {
-	var loadHistorySQL = `SELECT nickname, status, since, pending FROM member_history ` +
+	var loadHistorySQL = `SELECT nickname, status, since, pending, decision_reason, decision_maker FROM member_history ` +
 		`WHERE committees_id = ? ` +
 		`ORDER BY nickname, unixepoch(since)`
 	rows, err := tx.QueryContext(ctx, loadHistorySQL, committeeID)
@@ -868,7 +870,14 @@ func LoadUsersHistoriesTx(
 	for rows.Next() {
 		var entry UserHistoryEntry
 		var nickname string
-		if err := rows.Scan(&nickname, &entry.Status, &entry.Since, &entry.Pending); err != nil {
+		if err := rows.Scan(
+			&nickname,
+			&entry.Status,
+			&entry.Since,
+			&entry.Pending,
+			&entry.DecisionReason,
+			&entry.DecisionMaker,
+		); err != nil {
 			return nil, fmt.Errorf("scanning user histories failed: %w", err)
 		}
 		userHistories[nickname] = append(userHistories[nickname], &entry)
