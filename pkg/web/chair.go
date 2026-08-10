@@ -52,6 +52,31 @@ func (c *Controller) chair(w http.ResponseWriter, r *http.Request) {
 	check(w, r, c.tmpls.ExecuteTemplate(w, "chair.tmpl", data))
 }
 
+func (c *Controller) committeeMemberOverview(w http.ResponseWriter, r *http.Request) {
+	var (
+		committeeID, err = misc.Atoi64(r.FormValue("committee"))
+		ctx              = r.Context()
+	)
+	if !checkParam(w, err) {
+		return
+	}
+	committee, err := models.LoadCommittee(ctx, c.db, committeeID)
+	if !check(w, r, err) {
+		return
+	}
+	members, err := models.LoadCommitteeUsers(ctx, c.db, committeeID, nil)
+	if !check(w, r, err) {
+		return
+	}
+
+	data := templateData{
+		"Session":   auth.SessionFromContext(ctx),
+		"Committee": committee,
+		"Members":   members,
+	}
+	check(w, r, c.htmxTmpls.ExecuteTemplate(w, "committee_member_overview.tmpl", data))
+}
+
 func (c *Controller) absentOverview(w http.ResponseWriter, r *http.Request) {
 	var (
 		committeeID, err = misc.Atoi64(r.FormValue("committee"))
