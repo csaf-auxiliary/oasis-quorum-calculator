@@ -433,7 +433,7 @@ func (c *Controller) meetingStatusError(
 	// number of permanent non-voters, number of members with no voting rights.
 	var numTotal, numVoters, attendingVoters, numNonVoters, numMembers int
 
-	allUsers, err := models.LoadAllUsers(ctx, c.db)
+	allUsers, err := models.LoadAllUsers(ctx, c.db, true)
 
 	tx, err := c.db.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if err != nil {

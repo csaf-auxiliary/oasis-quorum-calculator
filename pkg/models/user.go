@@ -415,11 +415,13 @@ func (u *User) Store(ctx context.Context, db *database.Database) error {
 }
 
 // LoadAllUsers loads all user ordered by their nickname.
-func LoadAllUsers(ctx context.Context, db *database.Database) ([]*User, error) {
+func LoadAllUsers(ctx context.Context, db *database.Database, includeInactive bool) ([]*User, error) {
 	var users []*User
-	const loadSQL = `SELECT nickname, firstname, lastname, is_admin, active FROM users ` +
-		`WHERE active = TRUE ` +
-		`ORDER BY nickname`
+	var loadSQL = `SELECT nickname, firstname, lastname, is_admin, active FROM users `
+	if !includeInactive {
+		loadSQL += `WHERE active = TRUE `
+	}
+	loadSQL += `ORDER BY nickname`
 	rows, err := db.DB.QueryContext(ctx, loadSQL)
 	if err != nil {
 		return nil, fmt.Errorf("loading users failed: %w", err)

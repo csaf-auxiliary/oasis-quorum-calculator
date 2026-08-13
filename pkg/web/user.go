@@ -23,7 +23,7 @@ import (
 
 func (c *Controller) users(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	users, err := models.LoadAllUsers(ctx, c.db)
+	users, err := models.LoadAllUsers(ctx, c.db, false)
 	if !check(w, r, err) {
 		return
 	}
