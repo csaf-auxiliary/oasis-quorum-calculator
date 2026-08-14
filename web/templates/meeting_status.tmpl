@@ -62,7 +62,7 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{ .Quorum.AttendingVoting }} ({{ printf "%.1f" .Quorum.Percent }}%)
 <br>
 <strong>Status</strong>:
-{{ if or $chair $secretary }}
+{{ if or $chair $secretary $staff }}
 {{ if $concluded }}Concluded{{ else }}
 {{- if $onhold }}[Waiting]
 {{- else }}[<a href="/meeting_status_store?SESSIONID={{ $sessionID }}&meeting={{ $meetingID }}&committee={{ $committeeID }}&status=onhold">Pause</a>]
