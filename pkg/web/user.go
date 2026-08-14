@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"maps"
 	"net/http"
-	"regexp"
 	"slices"
 	"strings"
 	"unicode/utf8"
@@ -211,12 +210,8 @@ func (c *Controller) userEditStore(w http.ResponseWriter, r *http.Request) {
 	check(w, r, c.tmpls.ExecuteTemplate(w, "user_edit.tmpl", data))
 }
 
-var roleCommitteeRe = regexp.MustCompile(`(member|chair|secretary|staff)(\d+)`)
-
 func (c *Controller) userCommitteesStore(w http.ResponseWriter, r *http.Request) {
-	roleCommittees := r.Form["role_committee"]
 	memberships := map[int64]*models.Membership{}
-
 	ctx := r.Context()
 	session := auth.UserFromContext(ctx)
 	staffFilter := ""
@@ -228,43 +223,45 @@ func (c *Controller) userCommitteesStore(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	for _, rc := range roleCommittees {
-		m := roleCommitteeRe.FindStringSubmatch(rc)
-		if m == nil {
-			continue
-		}
-		var (
-			role, err2 = models.ParseRole(m[1])
-			id, err1   = misc.Atoi64(m[2])
-		)
-		if err1 != nil || err2 != nil {
-			// Should not happen.
-			continue
-		}
-		// Ignore entries that are not allowed to edit
-		if !slices.ContainsFunc(committees, func(c *models.Committee) bool {
-			return c.ID == id
-		}) {
-			continue
-		}
-		ms := memberships[id]
-		if ms == nil {
-			ms = &models.Membership{
-				Committee: &models.Committee{ID: id},
-				Status:    models.Member,
+	for _, committee := range committees {
+		roles := r.Form[fmt.Sprintf("%s%d", "role", committee.ID)]
+		for _, r := range roles {
+			role, err := models.ParseRole(r)
+			if err != nil {
+				// Should not happen.
+				continue
 			}
-			memberships[id] = ms
+
+			ms := memberships[committee.ID]
+			if ms == nil {
+				ms = &models.Membership{
+					Committee: &models.Committee{ID: committee.ID},
+					Status:    models.Member,
+				}
+				memberships[committee.ID] = ms
+			}
+			ms.Roles = append(ms.Roles, role)
 		}
-		ms.Roles = append(ms.Roles, role)
-	}
-	// Collect the status values
-	for _, ms := range memberships {
-		if v := r.FormValue(fmt.Sprintf("status%d", ms.Committee.ID)); v != "" {
+
+		if v := r.FormValue(fmt.Sprintf("status%d", committee.ID)); v != "" {
 			status, err := models.ParseMemberStatus(v)
 			if !checkParam(w, err) {
 				return
 			}
-			ms.Status = status
+			ms := memberships[committee.ID]
+			if ms != nil {
+				ms.Status = status
+				if status != models.NoMember && !ms.HasRole(models.MemberRole) {
+					ms.Roles = append(ms.Roles, models.MemberRole)
+				}
+			} else {
+				ms = &models.Membership{
+					Committee: &models.Committee{ID: committee.ID},
+					Roles:     []models.Role{models.MemberRole},
+					Status:    status,
+				}
+				memberships[committee.ID] = ms
+			}
 		}
 	}
 
