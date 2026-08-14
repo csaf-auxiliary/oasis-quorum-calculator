@@ -562,6 +562,19 @@ func UpdateMemberships(
 
 	// Insert NoMember status for removed committees
 	for _, committeeID := range committeeIDs {
+		// Ignore committees in which the user still is a member. Otherwise it's possible
+		// to get an error because a unique contraint fails when we insert another status
+		// in the next step.
+		var stillMember = false
+		for ms := range memberships {
+			if ms.Committee.ID == committeeID {
+				stillMember = true
+				break
+			}
+		}
+		if stillMember {
+			continue
+		}
 		var status MemberStatus
 		switch err := queryStatusStmt.QueryRowContext(ctx, nickname, committeeID).Scan(&status); {
 		case errors.Is(err, sql.ErrNoRows):
