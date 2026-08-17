@@ -919,7 +919,7 @@ func AddUserHistoryEntryTx(
 ) error {
 	var insertHistoryEntrySQL = `INSERT INTO member_history ` +
 		`(nickname, committees_id, status, since, pending, decision_reason, decision_maker) VALUES ` +
-		`(?, ?, ?, TRUE)`
+		`(?, ?, ?, ?, TRUE, ?, ?)`
 	if _, err := tx.ExecContext(
 		ctx,
 		insertHistoryEntrySQL,
