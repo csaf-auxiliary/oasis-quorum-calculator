@@ -29,6 +29,8 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{- $userNickname   := .User.Nickname }}
 {{- $histories      := .Histories }}
 {{- $showHistories  := $notOnlyMember }}
+{{- $newStatus  := .NewStatus }}
+{{- $statusChanges  := .StatusChanges }}
 
 {{- if $running }}
 <p><a href="/meeting_status?SESSIONID={{ $sessionID }}&meeting={{ $meetingID }}&committee={{ $committeeID }}"
@@ -163,6 +165,32 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 </fieldset>
 {{ end }}
 {{ if and $showHistories $concluded  }}
-  {{ template "committee_status_updates" Args "Histories" $histories "Members" .Members }}
+  <fieldset>
+    <legend>Status changes</legend>
+    {{ if not (eq (len $statusChanges) 0) }}
+      <table>
+        <thead>
+          <tr>
+            <th>Login</th>
+            <th>New Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{ range .Members }}
+          {{- $nickname := .Nickname }}
+          {{- $status := index $statusChanges .Nickname }}
+          {{ if index $statusChanges $nickname}}
+            <tr>
+            <td>{{ $nickname }}</td>
+            <td>{{ $status }}</td>
+          </tr>
+          {{end}}
+        {{ end }}
+        </tbody>
+      </table>
+    {{ else }}
+      <i>No changes</i>
+    {{ end }}
+  </fieldset>
 {{ end }}
 {{ template "footer" }}

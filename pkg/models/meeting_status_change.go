@@ -68,6 +68,7 @@ func ApplyUpDowngrades(
 	meetingID int64,
 	committeeID int64,
 	timer time.Time,
+	user *User,
 ) error {
 	if meetingStatus != MeetingInReview {
 		return nil
@@ -196,6 +197,8 @@ func ApplyUpDowngrades(
 				misc.Attribute(slices.Values(downgrades), Member)),
 			committeeID,
 			timer,
+			&meetingID,
+			&user.Nickname,
 		); err != nil {
 			return fmt.Errorf("upgrading / downgrading members failed: %w", err)
 		}
@@ -208,8 +211,9 @@ func UpdateMeetingStatus(
 	ctx context.Context, db *database.Database,
 	meetingID, committeeID int64,
 	meetingStatus MeetingStatus,
-	onSuccess func(context.Context, *sql.Tx, MeetingStatus, int64, int64, time.Time) error,
+	onSuccess func(context.Context, *sql.Tx, MeetingStatus, int64, int64, time.Time, *User) error,
 	timer time.Time,
+	user *User,
 ) error {
 	tx, err := db.DB.BeginTx(ctx, nil)
 	if err != nil {
@@ -225,6 +229,7 @@ func UpdateMeetingStatus(
 		ChangeMeetingStatusPrecondition,
 		onSuccess,
 		timer,
+		user,
 	)
 	if err != nil {
 		return fmt.Errorf("updating meeting status failed: %w", err)
@@ -239,8 +244,9 @@ func UpdateMeetingStatusTx(
 	meetingID, committeeID int64,
 	meetingStatus MeetingStatus,
 	precondition func(context.Context, *sql.Tx, MeetingStatus, int64, int64) error,
-	onSuccess func(context.Context, *sql.Tx, MeetingStatus, int64, int64, time.Time) error,
+	onSuccess func(context.Context, *sql.Tx, MeetingStatus, int64, int64, time.Time, *User) error,
 	timer time.Time,
+	user *User,
 ) error {
 	if precondition != nil {
 		if err := precondition(ctx, tx, meetingStatus, committeeID, meetingID); err != nil {
@@ -265,7 +271,7 @@ func UpdateMeetingStatusTx(
 		return fmt.Errorf("cannot determine meeting status change: %w", err)
 	}
 	if n == 1 && onSuccess != nil {
-		if err := onSuccess(ctx, tx, meetingStatus, meetingID, committeeID, timer); err != nil {
+		if err := onSuccess(ctx, tx, meetingStatus, meetingID, committeeID, timer, user); err != nil {
 			return err
 		}
 	}

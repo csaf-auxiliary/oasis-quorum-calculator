@@ -792,14 +792,16 @@ func UpdateUserCommitteeStatusTx(
 	users iter.Seq2[string, MemberStatus],
 	committeeID int64,
 	since time.Time,
+	meetingID *int64,
+	decisionMaker *string,
 ) error {
 	const (
 		queryLastSQL = `SELECT status FROM member_history ` +
 			`WHERE nickname = ? AND committees_id = ? ` +
 			`ORDER by unixepoch(since) DESC LIMIT 1`
 		insertSQL = `INSERT INTO member_history ` +
-			`(nickname, committees_id, status, since, pending) ` +
-			`VALUES(?, ?, ?, ?, TRUE)`
+			`(nickname, committees_id, status, since, pending, decision_reason, decision_maker) ` +
+			`VALUES(?, ?, ?, ?, TRUE, ?, ?)`
 	)
 	qStmt, err := tx.PrepareContext(ctx, queryLastSQL)
 	if err != nil {
@@ -824,7 +826,7 @@ func UpdateUserCommitteeStatusTx(
 			}
 		}
 		if _, err := iStmt.ExecContext(
-			ctx, nickname, committeeID, status, since); err != nil {
+			ctx, nickname, committeeID, status, since, meetingID, decisionMaker); err != nil {
 			return fmt.Errorf("inserting member status failed: %w", err)
 		}
 	}

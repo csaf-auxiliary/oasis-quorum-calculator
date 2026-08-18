@@ -434,7 +434,10 @@ func (c *Controller) meetingStatus(w http.ResponseWriter, r *http.Request) {
 	c.meetingStatusError(w, r, "")
 }
 
-func getPrevNewMemberStatus(history models.UserHistory) (models.MemberStatus, models.MemberStatus) {
+func getPrevNewMemberStatus(
+	history models.UserHistory,
+	status models.MeetingStatus,
+) (models.MemberStatus, models.MemberStatus) {
 	var (
 		prevStatus models.MemberStatus
 		newStatus  models.MemberStatus
@@ -446,7 +449,7 @@ func getPrevNewMemberStatus(history models.UserHistory) (models.MemberStatus, mo
 	} else if len(history) > 1 {
 		prevEntry := *history[len(history)-2]
 		latestEntry := *history[len(history)-1]
-		if !latestEntry.Pending {
+		if status == models.MeetingInReview && !latestEntry.Pending {
 			// It might be that no new (pending) entry was made by OQC itself yet
 			prevStatus = latestEntry.Status
 		} else {
@@ -567,6 +570,7 @@ func (c *Controller) meetingStatusError(
 	histories := map[string]models.MemberStatus{}
 	prevStatus := map[string]models.MemberStatus{}
 	newStatus := map[string]models.MemberStatus{}
+	statusChanges := map[string]models.MemberStatus{}
 	for _, member := range historicalUsers {
 		nickname := member.Nickname
 		history := allUsersHistories[nickname]
@@ -575,9 +579,17 @@ func (c *Controller) meetingStatusError(
 			return
 		}
 		histories[nickname] = status
-		prev, new := getPrevNewMemberStatus(history)
-		prevStatus[nickname] = prev
-		newStatus[nickname] = new
+		prev, new := getPrevNewMemberStatus(history, meetingStatus)
+		if prev != new || meetingStatus == models.MeetingInReview {
+			prevStatus[nickname] = prev
+			newStatus[nickname] = new
+		}
+		for _, entry := range history {
+			if entry.DecisionReason != nil && *entry.DecisionReason == meetingID {
+				statusChanges[nickname] = entry.Status
+			}
+		}
+
 	}
 
 	data := templateData{
@@ -592,6 +604,7 @@ func (c *Controller) meetingStatusError(
 		"PrevStatus":     prevStatus,
 		"NewStatus":      newStatus,
 		"Histories":      histories,
+		"StatusChanges":  statusChanges,
 	}
 	if errMsg != "" {
 		data.error(errMsg)
@@ -677,7 +690,7 @@ func (c *Controller) meetingReview(w http.ResponseWriter, r *http.Request) {
 	for _, member := range members {
 		nickname := member.Nickname
 		history := histories[nickname]
-		prev, new := getPrevNewMemberStatus(history)
+		prev, new := getPrevNewMemberStatus(history, models.MeetingInReview)
 		prevStatus[nickname] = prev
 		newStatus[nickname] = new
 	}
@@ -704,6 +717,7 @@ func (c *Controller) meetingFinish(w http.ResponseWriter, r *http.Request) {
 		committeeID, err = misc.Atoi64(r.FormValue("committee"))
 		meetingID, err2  = misc.Atoi64(r.FormValue("meeting"))
 		ctx              = r.Context()
+		user             = auth.UserFromContext(ctx)
 	)
 	if !checkParam(w, err, err2) {
 		return
@@ -764,6 +778,7 @@ func (c *Controller) meetingFinish(w http.ResponseWriter, r *http.Request) {
 		models.ChangeMeetingStatusPrecondition,
 		nil,
 		time.Now(),
+		user,
 	)
 	if err != nil {
 		log.Printf("changing meeting status failed: %v", err)
@@ -782,6 +797,7 @@ func (c *Controller) meetingStatusStore(w http.ResponseWriter, r *http.Request) 
 		committeeID, err2   = misc.Atoi64(r.FormValue("committee"))
 		meetingStatus, err3 = models.ParseMeetingStatus(r.FormValue("status"))
 		ctx                 = r.Context()
+		user                = auth.UserFromContext(ctx)
 	)
 	if !checkParam(w, err1, err2, err3) {
 		return
@@ -803,6 +819,7 @@ func (c *Controller) meetingStatusStore(w http.ResponseWriter, r *http.Request) 
 		meetingStatus,
 		models.ApplyUpDowngrades,
 		timer,
+		user,
 	); {
 	case errors.Is(err, models.ErrAlreadyRunning):
 		c.meetingStatusError(w, r, "Already have a running meeting in this committee.")
