@@ -60,6 +60,7 @@ func (c *Controller) committeeMemberOverview(w http.ResponseWriter, r *http.Requ
 	if !checkParam(w, err) {
 		return
 	}
+	user := auth.UserFromContext(ctx)
 	committee, err := models.LoadCommittee(ctx, c.db, committeeID)
 	if !check(w, r, err) {
 		return
@@ -73,6 +74,7 @@ func (c *Controller) committeeMemberOverview(w http.ResponseWriter, r *http.Requ
 		"Session":   auth.SessionFromContext(ctx),
 		"Committee": committee,
 		"Members":   members,
+		"User":      user,
 	}
 	check(w, r, c.htmxTmpls.ExecuteTemplate(w, "committee_member_overview.tmpl", data))
 }
