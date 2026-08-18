@@ -570,7 +570,12 @@ func (c *Controller) meetingStatusError(
 	histories := map[string]models.MemberStatus{}
 	prevStatus := map[string]models.MemberStatus{}
 	newStatus := map[string]models.MemberStatus{}
-	statusChanges := map[string]models.MemberStatus{}
+
+	type StatusChange struct {
+		Nickname string
+		Status   models.MemberStatus
+	}
+	statusChanges := make([]StatusChange, 0, numMembers)
 	for _, member := range historicalUsers {
 		nickname := member.Nickname
 		history := allUsersHistories[nickname]
@@ -586,10 +591,13 @@ func (c *Controller) meetingStatusError(
 		}
 		for _, entry := range history {
 			if entry.DecisionReason != nil && *entry.DecisionReason == meetingID {
-				statusChanges[nickname] = entry.Status
+				change := StatusChange{
+					Nickname: nickname,
+					Status:   entry.Status,
+				}
+				statusChanges = append(statusChanges, change)
 			}
 		}
-
 	}
 
 	data := templateData{

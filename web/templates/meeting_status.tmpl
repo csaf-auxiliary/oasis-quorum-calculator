@@ -176,16 +176,12 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
           </tr>
         </thead>
         <tbody>
-          {{ range .Members }}
-          {{- $nickname := .Nickname }}
-          {{- $status := index $statusChanges .Nickname }}
-          {{ if index $statusChanges $nickname}}
+          {{ range $statusChanges }}
             <tr>
-            <td>{{ $nickname }}</td>
-            <td>{{ $status }}</td>
-          </tr>
-          {{end}}
-        {{ end }}
+              <td>{{ .Nickname }}</td>
+              <td>{{ .Status.Label }}</td>
+            </tr>
+          {{ end }}
         </tbody>
       </table>
     {{ else }}
