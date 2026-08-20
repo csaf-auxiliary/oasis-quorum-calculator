@@ -1,0 +1,40 @@
+{{- /*
+This file is Free Software under the Apache-2.0 License
+without warranty, see README.md and LICENSE for details.
+
+SPDX-License-Identifier: Apache-2.0
+
+SPDX-FileCopyrightText: 2026 German Federal Office for Information Security (BSI) <https://www.bsi.bund.de>
+Software-Engineering: 2026 Intevation GmbH <https://intevation.de>
+*/ -}}
+
+{{- $committeeID        := .CommitteeID }}
+{{- $meetingID          := .MeetingID }}
+{{- $nickname           := .Nickname }}
+{{- $status             := .Status }}
+{{- $statusVoting       := MemberStatus "voting" }}
+{{- $statusMember       := MemberStatus "member" }}
+{{- $statusNoneVoting   := MemberStatus "nonevoting" }}
+{{- $preSelectedStatus  := .PreSelectedStatus }}
+
+<form
+    hx-post="/member_status_store?committee={{ $committeeID }}{{ if not (eq $meetingID -1 ) }}&meeting={{ $meetingID }}{{ end }}&nickname={{ $nickname }}"
+    hx-target="#editable-status-{{ $nickname }}"
+>
+    <select name="status">
+        <option
+            value={{ $statusVoting }}
+            {{ if eq $status $statusVoting.String }}selected{{end}}
+        >{{ $statusVoting.Label }}</option>
+        <option
+            value={{ $statusMember }}
+            {{ if eq $status $statusMember.String }}selected{{end}}
+        >{{ $statusMember.Label }}</option>
+        <option
+            value={{ $statusNoneVoting }}
+            {{ if eq $status $statusNoneVoting.String }}selected{{end}}
+        >{{ $statusNoneVoting.Label }}</option>
+    </select>
+    <button type="submit">Cancel</button>
+    <button type="submit">Apply</button>
+</form>

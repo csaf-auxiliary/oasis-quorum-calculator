@@ -8,21 +8,24 @@ SPDX-FileCopyrightText: 2025 German Federal Office for Information Security (BSI
 Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 */ -}}
 {{ template "header" . }}
-{{- $sessionID := .Session.ID }}
-{{- $meetings  := .Meetings }}
-{{- $chair     := Role "chair" }}
-{{- $secretary := Role "secretary" }}
-{{- $staff := Role "staff" }}
-{{- $user      := .User }}
-{{- $meetingOnHold    := MeetingStatus "onhold" }}
-{{- $meetingRunning   := MeetingStatus "running" }}
-{{- $meetingConcluded := MeetingStatus "concluded" }}
+{{- $sessionID           := .Session.ID }}
+{{- $meetings            := .Meetings }}
+{{- $committeesMembers   := .CommitteesMembers }}
+{{- $chair               := Role "chair" }}
+{{- $secretary           := Role "secretary" }}
+{{- $staff               := Role "staff" }}
+{{- $user                := .User }}
+{{- $meetingOnHold       := MeetingStatus "onhold" }}
+{{- $meetingRunning      := MeetingStatus "running" }}
+{{- $meetingConcluded    := MeetingStatus "concluded" }}
+{{- $meetingInReview     := MeetingStatus "review" }}
 {{ range $user.CommitteesWithRole $chair $secretary $staff }}
 {{- $committeeID := .ID }}
 <fieldset>
   <legend>Committee <strong>{{ .Name }}</strong></legend>
   <a href="/meetings_overview?SESSIONID={{ $sessionID }}&committee={{ $committeeID }}">Meetings overview</a><br>
   <a href="/meeting_create?SESSIONID={{ $sessionID }}&committee={{ $committeeID }}">Create meeting</a><br>
+  <a href="/committee_member_overview?&committee={{ $committeeID }}">Members overview</a><br>
   <a href="/absent_overview?SESSIONID={{ $sessionID }}&committee={{ $committeeID }}">Absent overview</a>
   {{ $filter := CommitteeIDFilter .ID }}
   {{ if $meetings.Contains $filter }}
@@ -45,11 +48,17 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
         <input type="checkbox" name="meetings" value="{{ .ID }}"></td>
         {{- end -}}
       <td>
-        <a href="/meeting_status?SESSIONID={{ $sessionID }}&meeting={{ .ID }}&committee={{ $committeeID }}">
-        {{- if      eq .Status $meetingOnHold }}Waiting
-        {{- else if eq .Status $meetingRunning }}<strong>Running</strong>
-        {{- else }}Concluded{{ end -}}
-        </a>
+        {{- if eq .Status $meetingInReview -}}
+          <a href="/meeting_review?&meeting={{ .ID }}&committee={{ $committeeID }}">
+            Review
+          </a>
+        {{- else }}
+          <a href="/meeting_status?SESSIONID={{ $sessionID }}&meeting={{ .ID }}&committee={{ $committeeID }}">
+          {{- if      eq .Status $meetingOnHold }}Waiting
+          {{- else if eq .Status $meetingRunning }}<strong>Running</strong>
+          {{- else }}Concluded{{ end -}}
+          </a>
+        {{ end -}}
       </td>
       <td>
         <a href="/meeting_edit?SESSIONID={{ $sessionID }}&meeting={{ .ID }}&committee={{ $committeeID }}"><time datetime="{{ .StartTime.UTC.Format "2006-01-02T15:04:05Z07:00" }}">{{ .StartTime.UTC.Format "2006-01-02 15:04 MST" }}</time></a>

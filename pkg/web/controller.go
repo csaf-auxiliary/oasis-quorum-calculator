@@ -28,9 +28,10 @@ import (
 
 // Controller binds the endpoints to the internal logic.
 type Controller struct {
-	cfg   *config.Config
-	db    *database.Database
-	tmpls *template.Template
+	cfg       *config.Config
+	db        *database.Database
+	tmpls     *template.Template
+	htmxTmpls *template.Template
 }
 
 type templateData map[string]any
@@ -65,22 +66,31 @@ var templateFuncs = template.FuncMap{
 	"SemVersion":                func() string { return version.SemVersion },
 }
 
+func loadTemplates(cfg *config.Config, subfolder string) (*template.Template, error) {
+	path := filepath.Join(cfg.Web.Root, subfolder, "*.tmpl")
+	return template.New("index").Funcs(templateFuncs).ParseGlob(path)
+}
+
 // NewController returns a new Controller.
 func NewController(
 	cfg *config.Config,
 	db *database.Database,
 ) (*Controller, error) {
-	path := filepath.Join(cfg.Web.Root, "templates", "*.tmpl")
-
-	tmpls, err := template.New("index").Funcs(templateFuncs).ParseGlob(path)
+	tmpls, err := loadTemplates(cfg, "templates")
 	if err != nil {
 		return nil, fmt.Errorf("loading templates failed: %w", err)
 	}
 
+	htmxTmpls, err := loadTemplates(cfg, "templates/htmx")
+	if err != nil {
+		return nil, fmt.Errorf("loading htmx templates failed: %w", err)
+	}
+
 	return &Controller{
-		cfg:   cfg,
-		db:    db,
-		tmpls: tmpls,
+		cfg:       cfg,
+		db:        db,
+		tmpls:     tmpls,
+		htmxTmpls: htmxTmpls,
 	}, nil
 }
 
@@ -149,12 +159,15 @@ func (c *Controller) Bind() http.Handler {
 		{"/absent_overview", mw.Roles(c.absentOverview, models.ChairRole, models.SecretaryRole, models.StaffRole)},
 		{"/absent_store", mw.Roles(c.absentStore, models.ChairRole, models.SecretaryRole, models.StaffRole)},
 		{"/absent_create_store", mw.Roles(c.absentCreateStore, models.ChairRole, models.SecretaryRole, models.StaffRole)},
+		{"/committee_member_overview", mw.Roles(c.committeeMemberOverview, models.ChairRole, models.SecretaryRole, models.StaffRole)},
 		{"/meetings_overview", mw.CommitteeRoles(c.meetingsOverview, models.ChairRole, models.MemberRole, models.SecretaryRole, models.StaffRole)},
 		{"/meetings_store", mw.CommitteeRoles(c.meetingsStore, models.ChairRole, models.SecretaryRole, models.StaffRole)},
 		{"/meeting_create", mw.CommitteeRoles(c.meetingCreate, models.ChairRole, models.SecretaryRole, models.StaffRole)},
 		{"/meeting_create_store", mw.CommitteeRoles(c.meetingCreateStore, models.ChairRole, models.SecretaryRole, models.StaffRole)},
 		{"/meeting_edit", mw.CommitteeRoles(c.meetingEdit, models.ChairRole, models.SecretaryRole, models.StaffRole)},
 		{"/meeting_edit_store", mw.CommitteeRoles(c.meetingEditStore, models.ChairRole, models.SecretaryRole, models.StaffRole)},
+		{"/meeting_review", mw.CommitteeRoles(c.meetingReview, models.ChairRole, models.MemberRole, models.SecretaryRole, models.StaffRole)},
+		{"/meeting_finish", mw.CommitteeRoles(c.meetingFinish, models.ChairRole, models.MemberRole, models.SecretaryRole, models.StaffRole)},
 		{"/meeting_status", mw.CommitteeRoles(c.meetingStatus, models.ChairRole, models.MemberRole, models.SecretaryRole, models.StaffRole)},
 		{"/meeting_status_store", mw.CommitteeRoles(c.meetingStatusStore, models.ChairRole, models.SecretaryRole, models.StaffRole)},
 		{"/meeting_attend_store", mw.CommitteeRoles(c.meetingAttendStore, models.ChairRole, models.SecretaryRole, models.StaffRole)},
@@ -162,6 +175,8 @@ func (c *Controller) Bind() http.Handler {
 		// Member
 		{"/member", mw.Roles(c.member, models.MemberRole)},
 		{"/member_attend", mw.CommitteeRoles(c.memberAttend, models.MemberRole)},
+		{"/member_status_edit", mw.CommitteeRoles(c.memberStatusEdit, models.ChairRole, models.MemberRole, models.SecretaryRole, models.StaffRole)},
+		{"/member_status_store", mw.CommitteeRoles(c.memberStatusStore, models.ChairRole, models.MemberRole, models.SecretaryRole, models.StaffRole)},
 	} {
 		router.HandleFunc(route.pattern, route.handler)
 	}

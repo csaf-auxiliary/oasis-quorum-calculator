@@ -17,6 +17,7 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{- $committeeName  := .Committee.Name }}
 {{- $onhold         := eq .Meeting.Status (MeetingStatus "onhold") }}
 {{- $running        := eq .Meeting.Status (MeetingStatus "running") }}
+{{- $inreview       := eq .Meeting.Status (MeetingStatus "review") }}
 {{- $alreadyRunning := .AlreadyRunning }}
 {{- $membership     := .User.MembershipByID ($committeeID)}}
 {{- $chair          := $membership.HasRole (Role "chair") }}
@@ -26,6 +27,10 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{- $concluded      := eq .Meeting.Status (MeetingStatus "concluded") }}
 {{- $notOnlyMember  := or .User.IsAdmin $chair -}}
 {{- $userNickname   := .User.Nickname }}
+{{- $histories      := .Histories }}
+{{- $showHistories  := $notOnlyMember }}
+{{- $newStatus  := .NewStatus }}
+{{- $statusChanges  := .StatusChanges }}
 
 {{- if $running }}
 <p><a href="/meeting_status?SESSIONID={{ $sessionID }}&meeting={{ $meetingID }}&committee={{ $committeeID }}"
@@ -70,10 +75,11 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{ if or $running $alreadyRunning }}[Running]
 {{- else }}[<a href="/meeting_status_store?SESSIONID={{ $sessionID }}&meeting={{ $meetingID }}&committee={{ $committeeID }}&status=running">Run</a>]
 {{- end }}
-[<a href="/meeting_status_store?SESSIONID={{ $sessionID }}&meeting={{ $meetingID }}&committee={{ $committeeID }}&status=concluded">Conclude</a>]
+[<a href="/meeting_status_store?SESSIONID={{ $sessionID }}&meeting={{ $meetingID }}&committee={{ $committeeID }}&status=review">Conclude</a>]
 {{ end }}
 {{ else }}
 {{ if $concluded }}Concluded
+{{ else if $inreview }}Review
 {{ else if $onhold }}Waiting
 {{ else if $running }}Running
 {{ end }}
@@ -157,5 +163,30 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 </form>
 {{ end }}
 </fieldset>
+{{ end }}
+{{ if and $showHistories $concluded  }}
+  <fieldset>
+    <legend>Status changes</legend>
+    {{ if not (eq (len $statusChanges) 0) }}
+      <table>
+        <thead>
+          <tr>
+            <th>Login</th>
+            <th>New Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{ range $statusChanges }}
+            <tr>
+              <td>{{ .Nickname }}</td>
+              <td>{{ .Status.Label }}</td>
+            </tr>
+          {{ end }}
+        </tbody>
+      </table>
+    {{ else }}
+      <i>No changes</i>
+    {{ end }}
+  </fieldset>
 {{ end }}
 {{ template "footer" }}

@@ -267,7 +267,13 @@ func (c *Controller) userCommitteesStore(w http.ResponseWriter, r *http.Request)
 
 	nickname := r.FormValue("nickname")
 	if !check(w, r, models.UpdateMemberships(
-		ctx, c.db, nickname, maps.Values(memberships))) {
+		ctx,
+		c.db,
+		nickname,
+		maps.Values(memberships),
+		nil,
+		&session.Nickname,
+	)) {
 		return
 	}
 	user, err := models.LoadUser(ctx, c.db, nickname, nil)
