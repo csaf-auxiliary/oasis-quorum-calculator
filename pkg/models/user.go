@@ -301,9 +301,8 @@ func (uh UsersHistories) GetEntriesWithMeetingID(users []*User, meetingID int64)
 func (uhe UserHistoryEntry) GetDecisionReason() int64 {
 	if uhe.DecisionReason == nil {
 		return -1
-	} else {
-		return *uhe.DecisionReason
 	}
+	return *uhe.DecisionReason
 }
 
 // LoadUser loads a user with a given nickname from the database.
@@ -855,8 +854,8 @@ func UpdateUserCommitteeStatusTx(
 }
 
 // PreviousEntry returns the latest entry of the user history
-func (h UsersHistories) PreviousEntry(nickname string) UserHistoryEntry {
-	var history = h[nickname]
+func (uh UsersHistories) PreviousEntry(nickname string) UserHistoryEntry {
+	var history = uh[nickname]
 	var last = history[len(history)-2]
 	return *last
 }
