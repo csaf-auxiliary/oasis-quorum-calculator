@@ -18,8 +18,8 @@ Software-Engineering: 2026 Intevation GmbH <https://intevation.de>
 {{- $preSelectedStatus  := .PreSelectedStatus }}
 
 <form
-    hx-post="/member_status_store?committee={{ $committeeID }}&meeting={{ $meetingID }}&nickname={{ $nickname }}"
-    hx-target="#new-status-{{ $nickname }}"
+    hx-post="/member_status_store?committee={{ $committeeID }}{{ if not (eq $meetingID -1 ) }}&meeting={{ $meetingID }}{{ end }}&nickname={{ $nickname }}"
+    hx-target="#editable-status-{{ $nickname }}"
 >
     <select name="status">
         <option

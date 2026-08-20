@@ -30,7 +30,9 @@ Software-Engineering: 2026 Intevation GmbH <https://intevation.de>
         <td>{{ .Nickname }}</td>
         <td>{{ .Firstname }}</td>
         <td>{{ .Lastname }}</td>
-        <td>{{ $ms.Status.Label }}</td>
+        <td id="editable-status-{{ .Nickname }}">
+            {{ template "member_status_display" Args "CommitteeID" $committee.ID "Status" $ms.Status "Nickname" .Nickname }}
+        </td>
         </tr>
     {{ end }}
     </tbody>

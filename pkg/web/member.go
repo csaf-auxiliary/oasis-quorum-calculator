@@ -12,7 +12,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"slices"
 	"strconv"
+	"time"
 
 	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/auth"
 	"github.com/csaf-auxiliary/oasis-quorum-calculator/pkg/misc"
@@ -81,11 +83,11 @@ func (c *Controller) memberAttend(w http.ResponseWriter, r *http.Request) {
 func (c *Controller) memberStatusEdit(w http.ResponseWriter, r *http.Request) {
 	var (
 		committeeID, err1 = misc.Atoi64(r.FormValue("committee"))
-		meetingID, err2   = misc.Atoi64(r.FormValue("meeting"))
+		formMeetingID     = r.FormValue("meeting")
 		nickname          = r.FormValue("nickname")
 		status            = r.FormValue("status")
 	)
-	if !checkParam(w, err1, err2) {
+	if !checkParam(w, err1) {
 		return
 	}
 	if nickname == "" {
@@ -93,6 +95,13 @@ func (c *Controller) memberStatusEdit(w http.ResponseWriter, r *http.Request) {
 	}
 	if status == "" {
 		return
+	}
+	var meetingID int64 = -1
+	if formMeetingID != "" {
+		meetingID, err1 = misc.Atoi64(formMeetingID)
+		if !checkParam(w, err1) {
+			return
+		}
 	}
 	data := templateData{
 		"CommitteeID": committeeID,
@@ -106,13 +115,13 @@ func (c *Controller) memberStatusEdit(w http.ResponseWriter, r *http.Request) {
 func (c *Controller) memberStatusStore(w http.ResponseWriter, r *http.Request) {
 	var (
 		committeeID, err1 = misc.Atoi64(r.FormValue("committee"))
-		meetingID, err2   = misc.Atoi64(r.FormValue("meeting"))
+		formMeetingID     = r.FormValue("meeting")
 		nickname          = r.FormValue("nickname")
 		status            = r.FormValue("status")
 		ctx               = r.Context()
 	)
 	user := auth.UserFromContext(ctx)
-	if !checkParam(w, err1, err2) {
+	if !checkParam(w, err1) {
 		return
 	}
 	if nickname == "" || status == "" {
@@ -128,31 +137,55 @@ func (c *Controller) memberStatusStore(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		return
 	}
+	var meetingID int64 = -1
 	defer tx.Rollback()
-	allUserHistories, err := models.LoadUsersHistoriesTx(ctx, tx, committeeID)
-	if err != nil {
-		return
-	}
-	userHistory := allUserHistories[nickname]
-	length := len(userHistory)
-	if length > 0 && userHistory[len(userHistory)-1].Pending {
-		since := userHistory[len(userHistory)-1].Since
-		err = models.UpdateUserHistoryEntryTx(ctx, tx, membershipStatus, nickname, since, true)
-	} else {
-		meeting, err := models.LoadMeeting(ctx, c.db, meetingID, committeeID)
-		if !check(w, r, err) {
+	// If formMeetingID is not empty the change happens as part of a meeting. If not the status
+	// is updated from somewhere else e.g. the member overview.
+	if formMeetingID != "" {
+		meetingID, err2 := misc.Atoi64(formMeetingID)
+		if !checkParam(w, err2) {
 			return
 		}
-		updateTime := misc.CalculateEndpoint(meeting.StartTime, meeting.StopTime)
-		err = models.AddUserHistoryEntryTx(
+
+		allUserHistories, err := models.LoadUsersHistoriesTx(ctx, tx, committeeID)
+		if err != nil {
+			return
+		}
+		userHistory := allUserHistories[nickname]
+		length := len(userHistory)
+		if length > 0 && userHistory[len(userHistory)-1].Pending {
+			since := userHistory[len(userHistory)-1].Since
+			err = models.UpdateUserHistoryEntryTx(ctx, tx, membershipStatus, nickname, since, true)
+		} else {
+			meeting, err := models.LoadMeeting(ctx, c.db, meetingID, committeeID)
+			if !check(w, r, err) {
+				return
+			}
+			updateTime := misc.CalculateEndpoint(meeting.StartTime, meeting.StopTime)
+			err = models.AddUserHistoryEntryTx(
+				ctx,
+				tx,
+				committeeID,
+				membershipStatus,
+				updateTime,
+				nickname,
+				&meetingID,
+				user.Nickname,
+			)
+		}
+	} else {
+		users := misc.ParseSeq2(slices.Values([]string{nickname}), func(s string) (string, models.MemberStatus, error) {
+			return nickname, membershipStatus, nil
+		})
+		now := time.Now()
+		err = models.UpdateUserCommitteeStatusTx(
 			ctx,
 			tx,
+			users,
 			committeeID,
-			membershipStatus,
-			updateTime,
-			nickname,
-			meetingID,
-			user.Nickname,
+			now,
+			nil,
+			&user.Nickname,
 		)
 	}
 	if err != nil {

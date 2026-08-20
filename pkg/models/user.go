@@ -916,7 +916,7 @@ func AddUserHistoryEntryTx(
 	status MemberStatus,
 	since time.Time,
 	nickname string,
-	meetingID int64,
+	meetingID *int64,
 	decisionMaker string,
 ) error {
 	var insertHistoryEntrySQL = `INSERT INTO member_history ` +
