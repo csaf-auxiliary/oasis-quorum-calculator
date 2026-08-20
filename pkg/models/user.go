@@ -285,6 +285,27 @@ func (uh UserHistory) Status(when time.Time) MemberStatus {
 	}
 }
 
+// GetEntriesWithMeetingID returns all history entries of the given users that were created because of the meeting with the given ID.
+func (uh UsersHistories) GetEntriesWithMeetingID(users []*User, meetingID int64) []*UserHistoryEntry {
+	filteredHistory := make([]*UserHistoryEntry, 0, len(users))
+	for _, user := range users {
+		filteredHistorySeq := misc.Filter(slices.Values(uh[user.Nickname]), func(entry *UserHistoryEntry) bool {
+			return entry.DecisionReason != nil && *entry.DecisionReason == meetingID
+		})
+		filteredHistory = slices.AppendSeq(filteredHistory, filteredHistorySeq)
+	}
+	return filteredHistory
+}
+
+// GetDecisionReason returns the value of DecisionReason or -1 if the pointer is nil
+func (uhe UserHistoryEntry) GetDecisionReason() int64 {
+	if uhe.DecisionReason == nil {
+		return -1
+	} else {
+		return *uhe.DecisionReason
+	}
+}
+
 // LoadUser loads a user with a given nickname from the database.
 func LoadUser(ctx context.Context, db *database.Database, nickname string, before *time.Time) (*User, error) {
 	tx, err := db.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})

@@ -111,25 +111,41 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
       <table>
         <thead>
           <tr>
-            <th>Date</th>
             <th>Login</th>
-            <th>Status</th>
+            <th>New status</th>
           </tr>
         </thead>
         <tbody>
-          {{ range $users }}
-          {{- $nickname := .Nickname }}
-          {{- $userTrail := index $histories .Nickname }}
-          {{ range $userTrail }}
-            <tr>
-              <td>
-                <time datetime="{{ .Since.UTC.Format "2006-01-02T15:04:05Z07:00" }}">{{ .Since.Format "2006-01-02 15:04 MST" }}</time>
-              </td>
-              <td>{{ $nickname }}</td>
-              <td>{{ .Status }}</td>
-            </tr>
+          {{ range $data }}
+            {{- $meetingID := .Meeting.ID }}
+            {{ if $meetingID }}
+              <tr>
+                <td colspan="100%">
+                  <a href="/meeting_status?SESSIONID={{ $sessionID}}&committee={{ $committeeID }}&meeting={{ $meetingID }}"><time datetime="{{ .Meeting.StartTime.UTC.Format "2006-01-02T15:04:05Z07:00" }}">{{ .Meeting.StartTime.UTC.Format "2006-01-02 15:04 MST" }}</time></a>
+                </td>
+              <tr>
+              {{- $entryLength := len ($histories.GetEntriesWithMeetingID $users $meetingID) }}
+              {{ if gt $entryLength 0 }}
+                {{ range $users }}
+                  {{- $nickname := .Nickname }}
+                  {{- $history := index $histories $nickname }}
+                    {{ range $history }}
+                      {{- $status := .Status }}
+                      {{ if eq $meetingID .GetDecisionReason }}
+                        <tr>
+                          <td>{{ $nickname }}</td>
+                          <td>{{ $status.Label }}</td>
+                        </tr>
+                      {{ end }}
+                    {{ end }}
+                {{ end }}
+              {{ else }}
+                <td colspan="100%">
+                  <i>No changes</i>
+                </td>
+              {{ end }}
+            {{ end }}
           {{ end }}
-        {{ end }}
         </tbody>
       </table>
     {{ else }}
