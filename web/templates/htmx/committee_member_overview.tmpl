@@ -27,7 +27,9 @@ Software-Engineering: 2026 Intevation GmbH <https://intevation.de>
     {{ range $committeeMembers }}
         {{- $ms := .MembershipByID $committee.ID }}
         <tr>
-        <td>{{ .Nickname }}</td>
+        <td>
+            <a href="/committee_member_details?SESSIONID={{ $sessionID }}&committee={{ $committee.ID }}&nickname={{ .Nickname }}">{{ .Nickname }}</a>
+        </td>
         <td>{{ .Firstname }}</td>
         <td>{{ .Lastname }}</td>
         <td id="editable-status-{{ .Nickname }}">

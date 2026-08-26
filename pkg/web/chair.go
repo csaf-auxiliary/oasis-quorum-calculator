@@ -52,6 +52,39 @@ func (c *Controller) chair(w http.ResponseWriter, r *http.Request) {
 	check(w, r, c.tmpls.ExecuteTemplate(w, "chair.tmpl", data))
 }
 
+func (c *Controller) committeeMemberDetails(w http.ResponseWriter, r *http.Request) {
+	var (
+		committeeID, err = misc.Atoi64(r.FormValue("committee"))
+		nickname         = r.FormValue("nickname")
+		ctx              = r.Context()
+	)
+	if !checkParam(w, err) {
+		return
+	}
+
+	committee, err := models.LoadCommittee(ctx, c.db, committeeID)
+	if !check(w, r, err) {
+		return
+	}
+	member, err := models.LoadUser(ctx, c.db, nickname, nil)
+	if !check(w, r, err) {
+		return
+	}
+	histories, err := models.LoadUsersHistories(ctx, c.db, committeeID)
+	if !check(w, r, err) {
+		return
+	}
+
+	data := templateData{
+		"Session":   auth.SessionFromContext(ctx),
+		"Committee": committee,
+		"Member":    member,
+		"History":   histories[nickname],
+		"User":      auth.UserFromContext(ctx),
+	}
+	check(w, r, c.htmxTmpls.ExecuteTemplate(w, "committee_member_details.tmpl", data))
+}
+
 func (c *Controller) committeeMemberOverview(w http.ResponseWriter, r *http.Request) {
 	var (
 		committeeID, err = misc.Atoi64(r.FormValue("committee"))

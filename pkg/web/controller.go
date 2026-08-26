@@ -160,6 +160,7 @@ func (c *Controller) Bind() http.Handler {
 		{"/absent_store", mw.Roles(c.absentStore, models.ChairRole, models.SecretaryRole, models.StaffRole)},
 		{"/absent_create_store", mw.Roles(c.absentCreateStore, models.ChairRole, models.SecretaryRole, models.StaffRole)},
 		{"/committee_member_overview", mw.Roles(c.committeeMemberOverview, models.ChairRole, models.SecretaryRole, models.StaffRole)},
+		{"/committee_member_details", mw.Roles(c.committeeMemberDetails, models.ChairRole, models.SecretaryRole, models.StaffRole)},
 		{"/meetings_overview", mw.CommitteeRoles(c.meetingsOverview, models.ChairRole, models.MemberRole, models.SecretaryRole, models.StaffRole)},
 		{"/meetings_store", mw.CommitteeRoles(c.meetingsStore, models.ChairRole, models.SecretaryRole, models.StaffRole)},
 		{"/meeting_create", mw.CommitteeRoles(c.meetingCreate, models.ChairRole, models.SecretaryRole, models.StaffRole)},
