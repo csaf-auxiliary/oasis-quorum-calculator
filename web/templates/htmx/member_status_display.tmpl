@@ -17,18 +17,20 @@ Software-Engineering: 2026 Intevation GmbH <https://intevation.de>
 {{- $statusMember       := MemberStatus "member" }}
 {{- $statusNoneVoting   := MemberStatus "nonevoting" }}
 
-<span>
-    {{ if eq $status $statusVoting }}Voting Member
-    {{ else if eq $status $statusMember }}Non-Voting Member
-    {{ else if eq $status $statusNoneVoting}}Persistent<br>Non-Voting<br>Member
-    {{ end }}
-</span>
-<button
-    hx-get="/member_status_edit?status={{ $status }}&committee={{ $committeeID }}{{if not (eq $meetingID -1) }}&meeting={{ $meetingID }}{{ end }}&nickname={{ $nickname }}"
-    hx-target="#editable-status-{{ .Nickname }}"
->
-Edit
-</button>
+<div class="editable-member-status">
+    <span>
+        {{ if eq $status $statusVoting }}Voting Member
+        {{ else if eq $status $statusMember }}Non-Voting Member
+        {{ else if eq $status $statusNoneVoting}}Persistent<br>Non-Voting<br>Member
+        {{ end }}
+    </span>
+    <button
+        hx-get="/member_status_edit?status={{ $status }}&committee={{ $committeeID }}{{if not (eq $meetingID -1) }}&meeting={{ $meetingID }}{{ end }}&nickname={{ $nickname }}"
+        hx-target="#editable-status-{{ .Nickname }}"
+    >
+    Edit
+    </button>
+</div>
 {{- end -}}
 
 {{ template "member_status_display" . }}
