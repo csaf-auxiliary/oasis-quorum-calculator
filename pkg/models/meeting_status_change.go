@@ -197,6 +197,7 @@ func ApplyUpDowngrades(
 				misc.Attribute(slices.Values(downgrades), Member)),
 			committeeID,
 			timer,
+			true,
 			&meetingID,
 			&user.Nickname,
 		); err != nil {

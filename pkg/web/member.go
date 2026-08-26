@@ -184,6 +184,7 @@ func (c *Controller) memberStatusStore(w http.ResponseWriter, r *http.Request) {
 			users,
 			committeeID,
 			now,
+			false,
 			nil,
 			&user.Nickname,
 		)
