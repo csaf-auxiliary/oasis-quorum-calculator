@@ -54,7 +54,7 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
     {{- if $user.Firstname }}{{ $user.Firstname }}{{ end }}
     {{  if $user.Lastname  }}{{ $user.Lastname  }}{{ end }}
     {{- if or $user.Firstname $user.Lastname }}<br>{{ end }}
-    (<strong>{{ $nickname }}</strong>)
+    (<strong><a href="/committee_member_details?SESSIONID={{ $sessionID }}&committee={{ $committeeID }}&nickname={{ $nickname }}">{{ $nickname }}</a></strong>)
   </td>
 {{- range $d := $data }}
 {{- $m         := $d.Meeting   }}
