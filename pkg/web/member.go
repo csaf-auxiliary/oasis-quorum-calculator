@@ -141,13 +141,14 @@ func (c *Controller) memberStatusStore(w http.ResponseWriter, r *http.Request) {
 	// If formMeetingID is not empty the change happens as part of a meeting. If not the status
 	// is updated from somewhere else e.g. the member overview.
 	if formMeetingID != "" {
-		meetingID, err2 := misc.Atoi64(formMeetingID)
-		if !checkParam(w, err2) {
+		meetingID, err = misc.Atoi64(formMeetingID)
+		if !checkParam(w, err) {
 			return
 		}
 
-		allUserHistories, err := models.LoadUsersHistoriesTx(ctx, tx, committeeID)
-		if err != nil {
+		var allUserHistories models.UsersHistories
+		allUserHistories, err = models.LoadUsersHistoriesTx(ctx, tx, committeeID)
+		if !check(w, r, err) {
 			return
 		}
 		userHistory := allUserHistories[nickname]
@@ -156,7 +157,8 @@ func (c *Controller) memberStatusStore(w http.ResponseWriter, r *http.Request) {
 			since := userHistory[len(userHistory)-1].Since
 			err = models.UpdateUserHistoryEntryTx(ctx, tx, membershipStatus, nickname, since, true)
 		} else {
-			meeting, err := models.LoadMeeting(ctx, c.db, meetingID, committeeID)
+			var meeting *models.Meeting
+			meeting, err = models.LoadMeeting(ctx, c.db, meetingID, committeeID)
 			if !check(w, r, err) {
 				return
 			}
@@ -184,7 +186,7 @@ func (c *Controller) memberStatusStore(w http.ResponseWriter, r *http.Request) {
 			&user.Nickname,
 		)
 	}
-	if err != nil {
+	if !check(w, r, err) {
 		log.Printf("updating membership status failed: %v", err.Error())
 		return
 	}

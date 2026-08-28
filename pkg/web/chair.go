@@ -528,25 +528,29 @@ func (c *Controller) meetingStatusError(
 		return
 	}
 
-	// Number of all members, number of voting members, number of voters attending the meeting,
-	// number of permanent non-voters, number of members with no voting rights.
-	var numTotal, numVoters, attendingVoters, numNonVoters, numMembers int
-
 	allUsers, err := models.LoadAllUsers(ctx, c.db)
+	if !check(w, r, err) {
+		return
+	}
 
 	tx, err := c.db.DB.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
-	if err != nil {
+	if !check(w, r, err) {
 		return
 	}
 	defer tx.Rollback() // Rollback on error or if commit is not reached
 
 	// Load all user histories for the given committee
 	allUsersHistories, err := models.LoadUsersHistoriesTx(ctx, tx, committeeID)
-	if err != nil {
+	if !check(w, r, err) {
 		return
 	}
 
-	var historicalUsers []*models.HistoricalUser
+	var (
+		historicalUsers []*models.HistoricalUser
+		// Number of all members, number of voting members, number of voters attending the meeting,
+		// number of permanent non-voters, number of members with no voting rights.
+		numTotal, numVoters, attendingVoters, numNonVoters, numMembers int
+	)
 
 	// Go over all users to include those that have left the committee since
 	for _, user := range allUsers {
