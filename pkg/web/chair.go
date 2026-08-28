@@ -617,10 +617,9 @@ func (c *Controller) meetingStatusError(
 			return
 		}
 		histories[nickname] = status
-		prev, new := getPrevNewMemberStatus(history, meetingStatus)
-		if prev != new || meetingStatus == models.MeetingInReview {
-			prevStatus[nickname] = prev
-			newStatus[nickname] = new
+		if p, n := getPrevNewMemberStatus(history, meetingStatus); p != n || meetingStatus == models.MeetingInReview {
+			prevStatus[nickname] = p
+			newStatus[nickname] = n
 		}
 		for _, entry := range history {
 			if entry.DecisionReason != nil && *entry.DecisionReason == meetingID {
@@ -731,9 +730,9 @@ func (c *Controller) meetingReview(w http.ResponseWriter, r *http.Request) {
 	for _, member := range members {
 		nickname := member.Nickname
 		history := histories[nickname]
-		prev, new := getPrevNewMemberStatus(history, models.MeetingInReview)
-		prevStatus[nickname] = prev
-		newStatus[nickname] = new
+		p, n := getPrevNewMemberStatus(history, models.MeetingInReview)
+		prevStatus[nickname] = p
+		newStatus[nickname] = n
 	}
 
 	data := templateData{

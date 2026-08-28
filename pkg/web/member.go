@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"slices"
 	"strconv"
 	"time"
 
@@ -174,16 +173,12 @@ func (c *Controller) memberStatusStore(w http.ResponseWriter, r *http.Request) {
 			)
 		}
 	} else {
-		users := misc.ParseSeq2(slices.Values([]string{nickname}), func(s string) (string, models.MemberStatus, error) {
-			return nickname, membershipStatus, nil
-		})
-		now := time.Now()
 		err = models.UpdateUserCommitteeStatusTx(
 			ctx,
 			tx,
-			users,
+			misc.Pair(nickname, membershipStatus),
 			committeeID,
-			now,
+			time.Now(),
 			false,
 			nil,
 			&user.Nickname,
