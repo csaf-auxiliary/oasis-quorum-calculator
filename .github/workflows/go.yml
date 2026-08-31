@@ -38,9 +38,6 @@ jobs:
         with:
           gofmt-flags: "-l -d"
 
-      - name: golint
-        uses: Jerome1337/golint-action@v1.0.3
-
       - name: Revive Action
         uses: morphy2k/revive-action@v2.7.8
 
