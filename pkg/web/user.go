@@ -23,7 +23,7 @@ import (
 
 func (c *Controller) users(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
-	users, err := models.LoadAllUsers(ctx, c.db)
+	users, err := models.LoadAllUsers(ctx, c.db, false)
 	if !check(w, r, err) {
 		return
 	}
@@ -81,7 +81,7 @@ func (c *Controller) usersStore(w http.ResponseWriter, r *http.Request) {
 		filter := misc.Filter(slices.Values(r.Form["users"]), func(nickname string) bool {
 			return nickname != "admin" && nickname != me
 		})
-		if !check(w, r, models.DeleteUsersByNickname(r.Context(), c.db, filter)) {
+		if !check(w, r, models.DeactivateUsersByNickname(r.Context(), c.db, filter, me)) {
 			return
 		}
 	}
@@ -141,7 +141,7 @@ func (c *Controller) userEdit(w http.ResponseWriter, r *http.Request) {
 	if !check(w, r, err) {
 		return
 	}
-	if user == nil {
+	if user == nil || !user.Active {
 		c.users(w, r)
 		return
 	}

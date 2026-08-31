@@ -528,7 +528,7 @@ func (c *Controller) meetingStatusError(
 		return
 	}
 
-	allUsers, err := models.LoadAllUsers(ctx, c.db)
+	allUsers, err := models.LoadAllUsers(ctx, c.db, true)
 	if !check(w, r, err) {
 		return
 	}

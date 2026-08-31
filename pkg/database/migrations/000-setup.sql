@@ -17,7 +17,8 @@ CREATE TABLE users (
     password  VARCHAR NOT NULL,
     firstname VARCHAR,
     lastname  VARCHAR,
-    is_admin  BOOLEAN NOT NULL DEFAULT FALSE
+    is_admin  BOOLEAN NOT NULL DEFAULT FALSE,
+    active    BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 CREATE TABLE sessions (

@@ -15,6 +15,7 @@ import (
 	"errors"
 	"fmt"
 	"iter"
+	"maps"
 	"slices"
 	"strings"
 	"time"
@@ -66,6 +67,7 @@ type User struct {
 	IsAdmin     bool
 	Memberships []*Membership
 	Password    *string
+	Active      bool
 }
 
 // HistoricalUser links a user to a Memberstatus
@@ -315,6 +317,7 @@ func LoadUser(ctx context.Context, db *database.Database, nickname string, befor
 	return loadUserTx(ctx, tx, nickname, before)
 }
 
+// loadBasicUserTx loads a user with a ID from the database.
 func loadBasicUserTx(
 	ctx context.Context,
 	tx *sql.Tx,
@@ -322,7 +325,7 @@ func loadBasicUserTx(
 ) (*User, error) {
 	// Collect user details
 	user := User{Nickname: nickname}
-	const userSQL = `SELECT firstname, lastname, is_admin ` +
+	const userSQL = `SELECT firstname, lastname, is_admin, active ` +
 		`FROM users ` +
 		`WHERE nickname = ?`
 
@@ -330,6 +333,7 @@ func loadBasicUserTx(
 		&user.Firstname,
 		&user.Lastname,
 		&user.IsAdmin,
+		&user.Active,
 	); {
 	case errors.Is(err, sql.ErrNoRows):
 		return nil, nil
@@ -339,6 +343,7 @@ func loadBasicUserTx(
 	return &user, nil
 }
 
+// loadUserTx loads a user with a ID from the database.
 func loadUserTx(
 	ctx context.Context,
 	tx *sql.Tx,
@@ -447,10 +452,13 @@ func (u *User) Store(ctx context.Context, db *database.Database) error {
 }
 
 // LoadAllUsers loads all user ordered by their nickname.
-func LoadAllUsers(ctx context.Context, db *database.Database) ([]*User, error) {
+func LoadAllUsers(ctx context.Context, db *database.Database, includeInactive bool) ([]*User, error) {
 	var users []*User
-	const loadSQL = `SELECT nickname, firstname, lastname, is_admin FROM users ` +
-		`ORDER BY nickname`
+	var loadSQL = `SELECT nickname, firstname, lastname, is_admin, active FROM users `
+	if !includeInactive {
+		loadSQL += `WHERE active = TRUE `
+	}
+	loadSQL += `ORDER BY nickname`
 	rows, err := db.DB.QueryContext(ctx, loadSQL)
 	if err != nil {
 		return nil, fmt.Errorf("loading users failed: %w", err)
@@ -463,6 +471,7 @@ func LoadAllUsers(ctx context.Context, db *database.Database) ([]*User, error) {
 			&user.Firstname,
 			&user.Lastname,
 			&user.IsAdmin,
+			&user.Active,
 		); err != nil {
 			return nil, fmt.Errorf("scanning users failed: %w", err)
 		}
@@ -474,20 +483,31 @@ func LoadAllUsers(ctx context.Context, db *database.Database) ([]*User, error) {
 	return users, nil
 }
 
-// DeleteUsersByNickname deletes users by their nicknames.
-func DeleteUsersByNickname(
+// DeactivateUsersByNickname deactivates users by their nicknames.
+func DeactivateUsersByNickname(
 	ctx context.Context,
 	db *database.Database,
 	nicknames iter.Seq[string],
+	decisionMaker string,
 ) error {
 	tx, err := db.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return nil
 	}
 	defer tx.Rollback()
-	const deleteSQL = `DELETE FROM users WHERE nickname = ?`
+	const deactivateSQL = `UPDATE users SET password = '', active = FALSE WHERE nickname = ?`
 	for nickname := range nicknames {
-		if _, err := tx.ExecContext(ctx, deleteSQL, nickname); err != nil {
+		user, err := loadUserTx(ctx, tx, nickname, nil)
+		if err != nil {
+			return fmt.Errorf("loading user failed: %w", err)
+		}
+		memberships := map[int64]*Membership{}
+		for _, ms := range user.Memberships {
+			memberships[ms.Committee.ID] = ms
+			ms.Status = NoMember
+		}
+		UpdateMembershipsTx(ctx, tx, nickname, maps.Values(memberships), nil, &decisionMaker)
+		if _, err := tx.ExecContext(ctx, deactivateSQL, nickname); err != nil {
 			return fmt.Errorf("deleting users failed: %w", err)
 		}
 	}
@@ -538,7 +558,10 @@ func UpdateMemberships(
 		return err
 	}
 	defer tx.Rollback()
-	UpdateMembershipsTx(ctx, tx, nickname, memberships, meetingID, decisionMaker)
+	err = UpdateMembershipsTx(ctx, tx, nickname, memberships, meetingID, decisionMaker)
+	if err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
