@@ -20,10 +20,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v7
         with:
           go-version: "stable"
 
@@ -34,7 +34,7 @@ jobs:
         run: go vet ./...
 
       - name: gofmt
-        uses: Jerome1337/gofmt-action@v1.0.4
+        uses: Jerome1337/gofmt-action@v1.0.5
         with:
           gofmt-flags: "-l -d"
 
@@ -42,7 +42,7 @@ jobs:
         uses: Jerome1337/golint-action@v1.0.3
 
       - name: Revive Action
-        uses: morphy2k/revive-action@v2.7.4
+        uses: morphy2k/revive-action@v2.7.8
 
       - name: Tests
         run: go test -v ./...
