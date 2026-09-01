@@ -33,7 +33,9 @@ Software-Engineering: 2026 Intevation GmbH <https://intevation.de>
                     <td>{{ .Status.Label }}</td>
                     <td>
                         {{ if .DecisionReason }}
-                            <a href="/meeting_status?SESSIONID={{ $sessionID}}&committee={{ $committee.ID }}&meeting={{ .DecisionReason }}"><time datetime="{{ .Since.UTC.Format "2006-01-02T15:04:05Z07:00" }}">{{ .Since.UTC.Format "2006-01-02 15:04 MST" }}</time></a>
+                            <a href="/meeting_status?SESSIONID={{ $sessionID}}&committee={{ $committee.ID }}&meeting={{ .DecisionReason }}">
+                                <time datetime="{{ .Since.UTC.Format "2006-01-02T15:04:05Z07:00" }}">{{ .Since.UTC.Format "2006-01-02 15:04 MST" }}</time> (Meeting)
+                            </a>
                         {{ else }}
                             <time datetime="{{ .Since.UTC.Format "2006-01-02T15:04:05Z07:00" }}">{{ .Since.UTC.Format "2006-01-02 15:04 MST" }}</time>
                         {{ end }}
