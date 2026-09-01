@@ -28,146 +28,112 @@ var (
 	ErrNewerConcluded = errors.New("newer concluded")
 )
 
-// ChangeMeetingStatus changes the status of a given meeting in
-// a given committee to a given status.
-// It checks if all conditions are met and does further adjustments
-// after the status change has happened.
-func ChangeMeetingStatus(
+// ChangeMeetingStatusPrecondition checks if all required conditions for a status are fulfilled.
+func ChangeMeetingStatusPrecondition(
 	ctx context.Context,
-	db *database.Database,
-	meetingID, committeeID int64,
+	tx *sql.Tx,
 	meetingStatus MeetingStatus,
-	timer time.Time,
+	committeeID int64,
+	meetingID int64,
 ) error {
-
-	// Extra checks before we try to change the status.
-	precondition := func(ctx context.Context, tx *sql.Tx) error {
-		switch meetingStatus {
-		case MeetingRunning:
-			// We should not start a meeting if one is already running.
-			switch has, err := HasCommitteeRunningMeetingTx(ctx, tx, committeeID); {
-			case err != nil:
-				return err
-			case has:
-				return ErrAlreadyRunning
-			}
-		case MeetingConcluded:
-			// To ensure the correct time order of conclusions
-			// prevent that we conclude a meeting if a newer
-			// one already has been concluded.
-			switch has, err := HasConcludedMeetingNewerThanTx(ctx, tx, meetingID); {
-			case err != nil:
-				return err
-			case has:
-				return ErrNewerConcluded
-			}
+	switch meetingStatus {
+	case MeetingRunning:
+		// We should not start a meeting if one is already running.
+		switch has, err := HasCommitteeRunningMeetingTx(ctx, tx, committeeID); {
+		case err != nil:
+			return err
+		case has:
+			return ErrAlreadyRunning
 		}
+	case MeetingInReview:
+		// To ensure the correct time order of conclusions
+		// prevent that we conclude a meeting if a newer
+		// one already has been concluded.
+		switch has, err := HasConcludedMeetingNewerThanTx(ctx, tx, meetingID); {
+		case err != nil:
+			return err
+		case has:
+			return ErrNewerConcluded
+		}
+	}
+	return nil
+}
+
+// ApplyUpDowngrades checks if the member status of users has to be up- or downgraded
+// and applies these changes.
+func ApplyUpDowngrades(
+	ctx context.Context,
+	tx *sql.Tx,
+	meetingStatus MeetingStatus,
+	meetingID int64,
+	committeeID int64,
+	timer time.Time,
+	user *User,
+) error {
+	if meetingStatus != MeetingInReview {
 		return nil
 	}
+	gathering, err := IsGatheringMeetingTx(ctx, tx, meetingID)
+	if err != nil {
+		return err
+	}
+	// Gatherings have no influence on voting.
+	if gathering {
+		return nil
+	}
+	prevMeetingID, hasPrev, err := PreviousMeetingTx(ctx, tx, meetingID)
+	if err != nil {
+		return err
+	}
+	if !hasPrev { // We need two meetings.
+		return nil
+	}
+	prevAttendees, err := MeetingAttendeesTx(ctx, tx, prevMeetingID)
+	if err != nil {
+		return err
+	}
+	currAttendees, err := MeetingAttendeesTx(ctx, tx, meetingID)
+	if err != nil {
+		return err
+	}
+	users, err := LoadCommitteeUsersTx(ctx, tx, committeeID, nil)
+	if err != nil {
+		return err
+	}
 
-	// This is only called if the update was successful.
-	onSuccess := func(ctx context.Context, tx *sql.Tx) error {
-		if meetingStatus != MeetingConcluded {
+	// Lazy previous loading as we don't need this in all cases.
+	var prevMeeting *Meeting
+	loadPrevMeeting := func() error {
+		if prevMeeting != nil {
 			return nil
 		}
-		gathering, err := IsGatheringMeetingTx(ctx, tx, meetingID)
+		var err error
+		prevMeeting, err = LoadMeetingTx(ctx, tx, meetingID, committeeID)
 		if err != nil {
-			return err
+			err = fmt.Errorf("loading previous meeting failed: %w", err)
 		}
-		// Gatherings have no influence on voting.
-		if gathering {
-			return nil
-		}
-		prevMeetingID, hasPrev, err := PreviousMeetingTx(ctx, tx, meetingID)
-		if err != nil {
-			return err
-		}
-		if !hasPrev { // We need two meetings.
-			return nil
-		}
-		prevAttendees, err := MeetingAttendeesTx(ctx, tx, prevMeetingID)
-		if err != nil {
-			return err
-		}
-		currAttendees, err := MeetingAttendeesTx(ctx, tx, meetingID)
-		if err != nil {
-			return err
-		}
-		users, err := LoadCommitteeUsersTx(ctx, tx, committeeID, nil)
-		if err != nil {
-			return err
-		}
+		return err
+	}
 
-		// Lazy previous loading as we don't need this in all cases.
-		var prevMeeting *Meeting
-		loadPrevMeeting := func() error {
-			if prevMeeting != nil {
-				return nil
-			}
-			var err error
-			prevMeeting, err = LoadMeetingTx(ctx, tx, meetingID, committeeID)
-			if err != nil {
-				err = fmt.Errorf("loading previous meeting failed: %w", err)
-			}
-			return err
+	// Lists of users to upgrade and downgrade.
+	var upgrades, downgrades []string
+
+	crit := MembershipByID(committeeID)
+	for _, user := range users {
+		ms := user.FindMembershipCriterion(crit)
+		if ms == nil || ms.Status == NoneVoting {
+			continue
 		}
+		votingCurr, wasInCurr := currAttendees[user.Nickname]
+		votingPrev, wasInPrev := prevAttendees[user.Nickname]
 
-		// Lists of users to upgrade and downgrade.
-		var upgrades, downgrades []string
-
-		crit := MembershipByID(committeeID)
-		for _, user := range users {
-			ms := user.FindMembershipCriterion(crit)
-			if ms == nil || ms.Status == NoneVoting {
-				continue
-			}
-			votingCurr, wasInCurr := currAttendees[user.Nickname]
-			votingPrev, wasInPrev := prevAttendees[user.Nickname]
-
-			if !wasInCurr { // user was absent in current meeting.
-				if ms.Status == Voting { // currently a voting member
-					if !wasInPrev { // was absent in previous meeting.
-						// There could be three reasons:
-						// 1. User was not in the committee at end of the previous meeting.
-						// 2. User was not a voting member at this time.
-						// 3. User was a voting member but absent.
-						if err := loadPrevMeeting(); err != nil {
-							return err
-						}
-						memberStatus, wasMemberPrev, err := UserMemberStatusSinceTx(
-							ctx, tx,
-							user.Nickname, committeeID,
-							prevMeeting.StopTime)
-						if err != nil {
-							return err
-						}
-						isExcused, err := IsUserExcusedFromMeetingTx(ctx, tx, user.Nickname, committeeID, prevMeeting.StopTime)
-						if err != nil {
-							return err
-						}
-						switch {
-						case isExcused:
-							// user had approved absent
-						case !wasMemberPrev:
-							// user was not member so that is his/her first strike.
-						case memberStatus != Voting:
-							// user was a member but at not a voter -> first strike.
-						default:
-							// second strike
-							downgrades = append(downgrades, user.Nickname)
-						}
-					}
-				}
-				continue
-			}
-			// User was in current meeting
-			if !votingCurr && ms.Status == Member { // Currently a none voting member
-				if wasInPrev { // Was in previous too
-					if votingPrev { // We know user was a downgraded voter -> no upgrade.
-						continue
-					}
-					// To be upgrade the user needs to be a member at the
-					// time of the previous time.
+		if !wasInCurr { // user was absent in current meeting.
+			if ms.Status == Voting { // currently a voting member
+				if !wasInPrev { // was absent in previous meeting.
+					// There could be three reasons:
+					// 1. User was not in the committee at end of the previous meeting.
+					// 2. User was not a voting member at this time.
+					// 3. User was a voting member but absent.
 					if err := loadPrevMeeting(); err != nil {
 						return err
 					}
@@ -178,34 +144,67 @@ func ChangeMeetingStatus(
 					if err != nil {
 						return err
 					}
-					if wasMemberPrev && memberStatus == Member {
-						upgrades = append(upgrades, user.Nickname)
+					isExcused, err := IsUserExcusedFromMeetingTx(ctx, tx, user.Nickname, committeeID, prevMeeting.StopTime)
+					if err != nil {
+						return err
+					}
+					switch {
+					case isExcused:
+						// user had approved absent
+					case !wasMemberPrev:
+						// user was not member so that is his/her first strike.
+					case memberStatus != Voting:
+						// user was a member but at not a voter -> first strike.
+					default:
+						// second strike
+						downgrades = append(downgrades, user.Nickname)
 					}
 				}
 			}
-		} // all committee users.
-
-		// Store the changes.
-		if len(upgrades) > 0 || len(downgrades) > 0 {
-			if err := UpdateUserCommitteeStatusTx(
-				ctx, tx,
-				misc.Join2(
-					misc.Attribute(slices.Values(upgrades), Voting),
-					misc.Attribute(slices.Values(downgrades), Member)),
-				committeeID,
-				timer,
-			); err != nil {
-				return fmt.Errorf("upgrading / downgrading members failed: %w", err)
+			continue
+		}
+		// User was in current meeting
+		if !votingCurr && ms.Status == Member { // Currently a none voting member
+			if wasInPrev { // Was in previous too
+				if votingPrev { // We know user was a downgraded voter -> no upgrade.
+					continue
+				}
+				// To be upgrade the user needs to be a member at the
+				// time of the previous time.
+				if err := loadPrevMeeting(); err != nil {
+					return err
+				}
+				memberStatus, wasMemberPrev, err := UserMemberStatusSinceTx(
+					ctx, tx,
+					user.Nickname, committeeID,
+					prevMeeting.StopTime)
+				if err != nil {
+					return err
+				}
+				if wasMemberPrev && memberStatus == Member {
+					upgrades = append(upgrades, user.Nickname)
+				}
 			}
 		}
-		return nil
+	} // all committee users.
+
+	// Store the changes.
+	if len(upgrades) > 0 || len(downgrades) > 0 {
+		if err := UpdateUserCommitteeStatusTx(
+			ctx, tx,
+			misc.Join2(
+				misc.Attribute(slices.Values(upgrades), Voting),
+				misc.Attribute(slices.Values(downgrades), Member)),
+			committeeID,
+			timer,
+			true,
+			&meetingID,
+			&user.Nickname,
+		); err != nil {
+			return fmt.Errorf("upgrading / downgrading members failed: %w", err)
+		}
 	}
-	return UpdateMeetingStatus(
-		ctx, db,
-		meetingID, committeeID, meetingStatus,
-		precondition,
-		onSuccess,
-	)
+	return nil
 }
 
 // UpdateMeetingStatus updates the status of the meeting identified by its id.
@@ -213,16 +212,45 @@ func UpdateMeetingStatus(
 	ctx context.Context, db *database.Database,
 	meetingID, committeeID int64,
 	meetingStatus MeetingStatus,
-	precondition, onSuccess func(context.Context, *sql.Tx) error,
+	onSuccess func(context.Context, *sql.Tx, MeetingStatus, int64, int64, time.Time, *User) error,
+	timer time.Time,
+	user *User,
 ) error {
 	tx, err := db.DB.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
+	err = UpdateMeetingStatusTx(
+		ctx,
+		tx,
+		meetingID,
+		committeeID,
+		meetingStatus,
+		ChangeMeetingStatusPrecondition,
+		onSuccess,
+		timer,
+		user,
+	)
+	if err != nil {
+		return fmt.Errorf("updating meeting status failed: %w", err)
+	}
+	return tx.Commit()
+}
 
+// UpdateMeetingStatusTx updates the status of the meeting identified by its id.
+func UpdateMeetingStatusTx(
+	ctx context.Context,
+	tx *sql.Tx,
+	meetingID, committeeID int64,
+	meetingStatus MeetingStatus,
+	precondition func(context.Context, *sql.Tx, MeetingStatus, int64, int64) error,
+	onSuccess func(context.Context, *sql.Tx, MeetingStatus, int64, int64, time.Time, *User) error,
+	timer time.Time,
+	user *User,
+) error {
 	if precondition != nil {
-		if err := precondition(ctx, tx); err != nil {
+		if err := precondition(ctx, tx, meetingStatus, committeeID, meetingID); err != nil {
 			return err
 		}
 	}
@@ -237,16 +265,16 @@ func UpdateMeetingStatus(
 		committeeID,
 	)
 	if err != nil {
-		return fmt.Errorf("updating meeting status failed: %w", err)
+		return err
 	}
 	n, err := result.RowsAffected()
 	if err != nil {
 		return fmt.Errorf("cannot determine meeting status change: %w", err)
 	}
 	if n == 1 && onSuccess != nil {
-		if err := onSuccess(ctx, tx); err != nil {
+		if err := onSuccess(ctx, tx, meetingStatus, meetingID, committeeID, timer, user); err != nil {
 			return err
 		}
 	}
-	return tx.Commit()
+	return nil
 }

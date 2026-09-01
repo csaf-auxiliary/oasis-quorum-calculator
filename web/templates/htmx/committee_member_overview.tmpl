@@ -1,0 +1,43 @@
+{{- /*
+This file is Free Software under the Apache-2.0 License
+without warranty, see README.md and LICENSE for details.
+
+SPDX-License-Identifier: Apache-2.0
+
+SPDX-FileCopyrightText: 2026 German Federal Office for Information Security (BSI) <https://www.bsi.bund.de>
+Software-Engineering: 2026 Intevation GmbH <https://intevation.de>
+*/ -}}
+
+{{ template "header" . }}
+{{- $sessionID           := .Session.ID }}
+{{- $committeeMembers    := .Members }}
+{{- $committee           := .Committee }}
+<fieldset>
+<legend>Members of committee <strong>{{ $committee.Name }}</strong></legend>
+<table>
+    <thead>
+    <tr>
+        <th>Login</th>
+        <th>Firstname</th>
+        <th>Lastname</th>
+        <th>Status</th>
+    </tr>
+    </thead>
+    <tbody>
+    {{ range $committeeMembers }}
+        {{- $ms := .MembershipByID $committee.ID }}
+        <tr>
+        <td>
+            <a href="/committee_member_details?SESSIONID={{ $sessionID }}&committee={{ $committee.ID }}&nickname={{ .Nickname }}">{{ .Nickname }}</a>
+        </td>
+        <td>{{ .Firstname }}</td>
+        <td>{{ .Lastname }}</td>
+        <td id="editable-status-{{ .Nickname }}">
+            {{ template "member_status_display" Args "CommitteeID" $committee.ID "Status" $ms.Status "Nickname" .Nickname }}
+        </td>
+        </tr>
+    {{ end }}
+    </tbody>
+</table>
+</fieldset>
+{{ template "footer" }}

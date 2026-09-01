@@ -40,6 +40,11 @@ func (c *Controller) login(w http.ResponseWriter, r *http.Request) {
 		c.authFailed(w, r, "", "Missing user name")
 		return
 	}
+	user, err := models.LoadUser(r.Context(), c.db, nickname, nil)
+	if err != nil || !user.Active {
+		c.authFailed(w, r, nickname, "Login failed")
+		return
+	}
 	password := r.FormValue("password")
 	if password == "" {
 		c.authFailed(w, r, nickname, "Missing password")
