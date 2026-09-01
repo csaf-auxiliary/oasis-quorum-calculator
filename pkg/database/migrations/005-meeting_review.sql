@@ -18,4 +18,4 @@ ALTER TABLE member_history ADD COLUMN
 ALTER TABLE member_history ADD COLUMN
     decision_maker  VARCHAR   REFERENCES users(nickname);
 
-UPDATE member_history SET pending = TRUE;
+UPDATE member_history SET pending = FALSE;
