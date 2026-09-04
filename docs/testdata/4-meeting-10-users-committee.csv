@@ -1,0 +1,12 @@
+Status,Role,Name,2025-06-06,2025-05-05,2025-04-04,2025-03-03
+      ,    ,    ,          ,          ,(informational),
+Voter,Voting Member,User Name1,User Name1,User Name1,,
+Non-voter,Member,User Name2,User Name2,User Name2,User Name2,
+Non-Voter,Member,User Name3,,User Name3,,
+Voter,Voting Member,User Name4,,,User Name4,
+Non-voter,Member,User Name5,User Name5,,,
+Voter,Voting Member,User Name6,,User Name6,,
+Voter,Chair,User Name7,User Name7,User Name7,User Name7,
+Voter,Secretary,User Name8,User Name8 (Leave of absence),User Name8 (Leave of absence),,User Name8
+Non-voter,Chair,User Name9,User Name9,,,User Name9
+Non-voter,Voting Member,User Name10,User Name10,User Name10,,

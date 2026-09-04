@@ -12,8 +12,10 @@
 
 ## Overview
 
-This reads a list from users from a CSV file and inserts tehm into the SQLite database used by the quorum calculator. If
-a user does not exist in the database, they are added with a randomly generated password. The tool also creates a
+This reads a list from users from a CSV file and inserts them
+into the SQLite database used by the quorum calculator.
+If a user does not exist in the database, they are added
+with a randomly generated password. The tool also creates a
 separate CSV file storing the mapping of nicknames to their generated passwords.
 
 ## CSV Format
@@ -27,7 +29,7 @@ anton,Anton,Amann,true,"TC 1",false,true,voting
 
 | Field        | Required | Type    | Description                                               |
 |--------------|----------|---------|-----------------------------------------------------------|
-| `nickname`   | ✅        | string  | Unique identifier for the user.                           |
+| `nickname`   | ✅        | string  | Unique identifier for the user. (email address by convention)                           | 
 | `first name` | ✅        | string  | First name of the user.                                   |
 | `last name`  | ✅        | string  | Last name of the user.                                    |
 | `admin`      | ✅        | boolean | Whether the user is an administrator (`true`/`false`).    |
@@ -52,9 +54,18 @@ anton,Anton,Amann,true,"TC 1",false,true,voting
 
 ### Password File
 
-A CSV file will be generated with each nemly created user's nickname and their generated password:
+A CSV file will be generated with each newly created user's nickname
+and their generated password, for example:
 
 ```csv
 "anton","8gTf93kL2qWZ"
 "brenda","9xZqY8NuPw1T"
+```
+
+### Test data
+Run this python code to create a file `testusers.csv`:
+```python3
+with open("testusers.csv","wt") as f:
+   for no in range(1,31):
+        _ = f.write(f"user{no}@example.org,User,Name{no},false,,,,\n")
 ```
