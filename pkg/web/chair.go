@@ -657,6 +657,17 @@ func (c *Controller) meetingStatusError(
 	if meetingStatus == models.MeetingInReview {
 		check(w, r, c.htmxTmpls.ExecuteTemplate(w, "meeting_review.tmpl", data))
 	} else {
+		meetings, err := models.LoadLastNMeetingsTx(ctx, tx, committeeID, 3)
+		var prevReviewMeetings []*models.Meeting
+		for _, meeting := range meetings {
+			if meeting.Status == models.MeetingInReview && meeting.ID != meetingID {
+				prevReviewMeetings = append(prevReviewMeetings, meeting)
+			}
+		}
+		if !check(w, r, err) {
+			return
+		}
+		data["PrevReviewMeetings"] = prevReviewMeetings
 		check(w, r, c.tmpls.ExecuteTemplate(w, "meeting_status.tmpl", data))
 	}
 }

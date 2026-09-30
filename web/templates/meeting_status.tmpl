@@ -31,6 +31,33 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{- $showHistories  := $notOnlyMember }}
 {{- $newStatus  := .NewStatus }}
 {{- $statusChanges  := .StatusChanges }}
+{{- $prevReviewMeetings  := .PrevReviewMeetings }}
+
+{{- if not (eq (len $prevReviewMeetings) 0) }}
+  <p class="notice">
+    <strong>Notice:</strong>
+    {{- if eq (len $prevReviewMeetings) 1 }}
+      {{- $meetingInReview := index $prevReviewMeetings 0 }}
+      There is still a meeting in review
+      <a href="/meeting_status?SESSIONID={{ $sessionID }}&meeting={{ $meetingInReview.ID }}&committee={{ $committeeID }}">
+        <time datetime="{{ $meetingInReview.StartTime.UTC.Format "2006-01-02T15:04:05Z07:00" }}">{{ $meetingInReview.StartTime.UTC.Format "2006-01-02 15:04 MST" }}</time>
+      </a>
+      so the member statuses displayed below is only preliminary.
+    {{- end }}
+    {{- if eq (len $prevReviewMeetings) 2 }}
+      {{- $firstMeetingInReview := index $prevReviewMeetings 0 }}
+      {{- $secondMeetingInReview := index $prevReviewMeetings 1 }}
+      There are still meetings in review
+        (<a href="/meeting_review?meeting={{ $firstMeetingInReview.ID }}&committee={{ $committeeID }}">
+          <time datetime="{{ $firstMeetingInReview.StartTime.UTC.Format "2006-01-02T15:04:05Z07:00" }}">{{ $firstMeetingInReview.StartTime.UTC.Format "2006-01-02 15:04 MST" }}</time>
+        </a>,
+        <a href="/meeting_review?&meeting={{ $secondMeetingInReview.ID }}&committee={{ $committeeID }}">
+          <time datetime="{{ $secondMeetingInReview.StartTime.UTC.Format "2006-01-02T15:04:05Z07:00" }}">{{ $secondMeetingInReview.StartTime.UTC.Format "2006-01-02 15:04 MST" }}</time>
+        </a>)
+      so the member statuses displayed below are only preliminary.
+    {{- end }}
+  </p>
+{{- end }}
 
 {{- if $running }}
 <p><a href="/meeting_status?SESSIONID={{ $sessionID }}&meeting={{ $meetingID }}&committee={{ $committeeID }}"
