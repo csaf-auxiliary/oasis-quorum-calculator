@@ -309,7 +309,7 @@ func LoadLastNMeetingsTx(
 		`ORDER BY unixepoch(start_time) DESC `
 	var query string
 	if limit >= 0 {
-		query = query + " LIMIT " + strconv.FormatInt(limit, 10)
+		query = loadSQL + " LIMIT " + strconv.FormatInt(limit, 10)
 	} else {
 		query = loadSQL
 	}
