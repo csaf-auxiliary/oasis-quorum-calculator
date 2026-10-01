@@ -17,6 +17,7 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{- $committeeName  := .Committee.Name }}
 {{- $onhold         := eq .Meeting.Status (MeetingStatus "onhold") }}
 {{- $running        := eq .Meeting.Status (MeetingStatus "running") }}
+{{- $inreview       := eq .Meeting.Status (MeetingStatus "review") }}
 {{- $alreadyRunning := .AlreadyRunning }}
 {{- $membership     := .User.MembershipByID ($committeeID)}}
 {{- $chair          := $membership.HasRole (Role "chair") }}
@@ -26,6 +27,37 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{- $concluded      := eq .Meeting.Status (MeetingStatus "concluded") }}
 {{- $notOnlyMember  := or .User.IsAdmin $chair -}}
 {{- $userNickname   := .User.Nickname }}
+{{- $histories      := .Histories }}
+{{- $showHistories  := $notOnlyMember }}
+{{- $newStatus  := .NewStatus }}
+{{- $statusChanges  := .StatusChanges }}
+{{- $prevReviewMeetings  := .PrevReviewMeetings }}
+
+{{- if and (not (eq (len $prevReviewMeetings) 0)) (or $chair $staff) }}
+  <p class="notice">
+    <strong>Notice:</strong>
+    {{- if eq (len $prevReviewMeetings) 1 }}
+      {{- $meetingInReview := index $prevReviewMeetings 0 }}
+      There is still a meeting in review
+      <a href="/meeting_review?meeting={{ $meetingInReview.ID }}&committee={{ $committeeID }}">
+        <time datetime="{{ $meetingInReview.StartTime.UTC.Format "2006-01-02T15:04:05Z07:00" }}">{{ $meetingInReview.StartTime.UTC.Format "2006-01-02 15:04 MST" }}</time>
+      </a>
+      so the member statuses displayed below is only preliminary.
+    {{- end }}
+    {{- if eq (len $prevReviewMeetings) 2 }}
+      {{- $firstMeetingInReview := index $prevReviewMeetings 0 }}
+      {{- $secondMeetingInReview := index $prevReviewMeetings 1 }}
+      There are still meetings in review
+        (<a href="/meeting_review?meeting={{ $firstMeetingInReview.ID }}&committee={{ $committeeID }}">
+          <time datetime="{{ $firstMeetingInReview.StartTime.UTC.Format "2006-01-02T15:04:05Z07:00" }}">{{ $firstMeetingInReview.StartTime.UTC.Format "2006-01-02 15:04 MST" }}</time>
+        </a>,
+        <a href="/meeting_review?&meeting={{ $secondMeetingInReview.ID }}&committee={{ $committeeID }}">
+          <time datetime="{{ $secondMeetingInReview.StartTime.UTC.Format "2006-01-02T15:04:05Z07:00" }}">{{ $secondMeetingInReview.StartTime.UTC.Format "2006-01-02 15:04 MST" }}</time>
+        </a>)
+      so the member statuses displayed below are only preliminary.
+    {{- end }}
+  </p>
+{{- end }}
 
 {{- if $running }}
 <p><a href="/meeting_status?SESSIONID={{ $sessionID }}&meeting={{ $meetingID }}&committee={{ $committeeID }}"
@@ -63,17 +95,22 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 <br>
 <strong>Status</strong>:
 {{ if or $chair $secretary $staff }}
-{{ if $concluded }}Concluded{{ else }}
+{{ if $concluded }}
+  Concluded
+{{ else if $inreview }}
+  In review
+{{ else }}
 {{- if $onhold }}[Waiting]
 {{- else }}[<a href="/meeting_status_store?SESSIONID={{ $sessionID }}&meeting={{ $meetingID }}&committee={{ $committeeID }}&status=onhold">Pause</a>]
 {{- end }}
 {{ if or $running $alreadyRunning }}[Running]
 {{- else }}[<a href="/meeting_status_store?SESSIONID={{ $sessionID }}&meeting={{ $meetingID }}&committee={{ $committeeID }}&status=running">Run</a>]
 {{- end }}
-[<a href="/meeting_status_store?SESSIONID={{ $sessionID }}&meeting={{ $meetingID }}&committee={{ $committeeID }}&status=concluded">Conclude</a>]
+[<a href="/meeting_status_store?SESSIONID={{ $sessionID }}&meeting={{ $meetingID }}&committee={{ $committeeID }}&status=review">Conclude</a>]
 {{ end }}
 {{ else }}
 {{ if $concluded }}Concluded
+{{ else if $inreview }}Review
 {{ else if $onhold }}Waiting
 {{ else if $running }}Running
 {{ end }}
@@ -157,5 +194,30 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 </form>
 {{ end }}
 </fieldset>
+{{ end }}
+{{ if and $showHistories $concluded  }}
+  <fieldset>
+    <legend>Member status changes</legend>
+    {{ if not (eq (len $statusChanges) 0) }}
+      <table>
+        <thead>
+          <tr>
+            <th>Login</th>
+            <th>New Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{ range $statusChanges }}
+            <tr>
+              <td>{{ .Nickname }}</td>
+              <td>{{ .Status.Label }}</td>
+            </tr>
+          {{ end }}
+        </tbody>
+      </table>
+    {{ else }}
+      <i>No changes</i>
+    {{ end }}
+  </fieldset>
 {{ end }}
 {{ template "footer" }}

@@ -1,0 +1,56 @@
+{{- /*
+This file is Free Software under the Apache-2.0 License
+without warranty, see README.md and LICENSE for details.
+
+SPDX-License-Identifier: Apache-2.0
+
+SPDX-FileCopyrightText: 2026 German Federal Office for Information Security (BSI) <https://www.bsi.bund.de>
+Software-Engineering: 2026 Intevation GmbH <https://intevation.de>
+*/ -}}
+{{ template "header" . }}
+{{ template "error" . }}
+{{- $meetingID      := .Meeting.ID }}
+{{- $gathering      := .Meeting.Gathering }}
+{{- $attendees      := .Attendees }}
+{{- $committeeID    := .Committee.ID }}
+{{- $committeeName  := .Committee.Name }}
+{{- $onhold         := eq .Meeting.Status (MeetingStatus "onhold") }}
+{{- $running        := eq .Meeting.Status (MeetingStatus "running") }}
+{{- $alreadyRunning := .AlreadyRunning }}
+{{- $membership     := .User.MembershipByID ($committeeID)}}
+{{- $chair          := $membership.HasRole (Role "chair") }}
+{{- $secretary      := $membership.HasRole (Role "secretary") }}
+{{- $staff          := $membership.HasRole (Role "staff") }}
+{{- $allowWrite     := and $running (or $chair $secretary $staff) }}
+{{- $concluded      := eq .Meeting.Status (MeetingStatus "concluded") }}
+{{- $notOnlyMember  := or .User.IsAdmin $chair -}}
+{{- $userNickname   := .User.Nickname }}
+
+{{ if .Members }}
+{{- $statusVoting     := MemberStatus "voting" }}
+{{- $statusMember     := MemberStatus "member" }}
+{{- $statusNoneVoting := MemberStatus "nonevoting" }}
+<tbody id="#tbody">
+{{ range .Members }}
+  <tr>
+    {{ if $allowWrite }}
+    <td><input type="checkbox"
+               name="attend"
+               value="{{ .Nickname }}"></td>
+    {{- end }}
+    <td>{{ if index $attendees .Nickname }}&check;{{ end }}</td>
+    <td>{{ if ne .Firstname nil }}{{ .Firstname }}{{ end }}</td>
+    <td>{{ if ne .Lastname nil }}{{ .Lastname }}{{ end }}</td>
+    {{ if $notOnlyMember }}
+        <td>{{ .Nickname }}</td>
+    {{ end }}
+{{ if not $gathering }}
+    {{ $ms := .FindMembership $committeeName }}
+    <td>{{ if eq $ms.Status $statusVoting }}&check;{{ end }}</td>
+    <td>{{ if eq $ms.Status $statusMember }}&check;{{ end }}</td>
+    <td>{{ if eq $ms.Status $statusNoneVoting }}&check;{{ end }}</td>
+{{ end }}
+  </tr>
+{{ end }}
+</tbody>
+{{ end }}
