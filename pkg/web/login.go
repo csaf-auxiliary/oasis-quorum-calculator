@@ -41,7 +41,7 @@ func (c *Controller) login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	user, err := models.LoadUser(r.Context(), c.db, nickname, nil)
-	if err != nil || !user.Active {
+	if err != nil || user == nil || !user.Active {
 		c.authFailed(w, r, nickname, "Login failed")
 		return
 	}
