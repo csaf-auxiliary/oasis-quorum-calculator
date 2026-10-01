@@ -164,7 +164,7 @@ Next steps:
 Exptected interim result: `mason` is listed in the table with the attendees.
 
 Next steps:
-- Click on `chair` in the header
+- Click on "chair" in the header
 - Click on "Create meeting"
 - Click on "Create"
 - Click on "Waiting" in the list of meetings
@@ -182,6 +182,8 @@ Steps:
 - Click on "Deactivate"
 
 Exptected interim result: `florence` is not listed anymore.
+
+Next steps:
 - Sign out
 - Sign in as `mason`
 - Click on the first meeting
