@@ -302,18 +302,27 @@ func LoadLastNMeetingsTx(
 	tx *sql.Tx,
 	committeeID int64,
 	limit int64,
+	maxStartTime *time.Time,
 ) (Meetings, error) {
-	const loadSQL = `SELECT id, status, gathering, start_time, stop_time, description ` +
+	loadSQL := `SELECT id, status, gathering, start_time, stop_time, description ` +
 		`FROM meetings ` +
-		`WHERE committees_id = ? ` +
-		`ORDER BY unixepoch(start_time) DESC `
-	var query string
-	if limit >= 0 {
-		query = loadSQL + " LIMIT " + strconv.FormatInt(limit, 10)
-	} else {
-		query = loadSQL
+		`WHERE committees_id = ? `
+	if maxStartTime != nil {
+		loadSQL = loadSQL + `AND start_time < ? `
 	}
-	rows, err := tx.QueryContext(ctx, query, committeeID)
+	loadSQL = loadSQL + `ORDER BY unixepoch(start_time) DESC `
+	if limit >= 0 {
+		loadSQL = loadSQL + " LIMIT " + strconv.FormatInt(limit, 10)
+	}
+	var (
+		rows *sql.Rows
+		err  error
+	)
+	if maxStartTime != nil {
+		rows, err = tx.QueryContext(ctx, loadSQL, committeeID, maxStartTime)
+	} else {
+		rows, err = tx.QueryContext(ctx, loadSQL, committeeID)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("querying last n meetings failed: %w", err)
 	}
@@ -709,7 +718,7 @@ func LoadMeetingsOverview(
 	}
 	defer tx.Rollback()
 
-	meetings, err := LoadLastNMeetingsTx(ctx, tx, committeeID, limit)
+	meetings, err := LoadLastNMeetingsTx(ctx, tx, committeeID, limit, nil)
 	if err != nil {
 		return nil, err
 	}

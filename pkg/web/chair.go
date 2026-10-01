@@ -657,7 +657,7 @@ func (c *Controller) meetingStatusError(
 	if meetingStatus == models.MeetingInReview {
 		check(w, r, c.htmxTmpls.ExecuteTemplate(w, "meeting_review.tmpl", data))
 	} else {
-		meetings, err := models.LoadLastNMeetingsTx(ctx, tx, committeeID, 3)
+		meetings, err := models.LoadLastNMeetingsTx(ctx, tx, committeeID, 3, &meeting.StartTime)
 		var prevReviewMeetings []*models.Meeting
 		for _, meeting := range meetings {
 			if meeting.Status == models.MeetingInReview && meeting.ID != meetingID {
