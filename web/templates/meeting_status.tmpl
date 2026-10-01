@@ -33,7 +33,7 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{- $statusChanges  := .StatusChanges }}
 {{- $prevReviewMeetings  := .PrevReviewMeetings }}
 
-{{- if not (eq (len $prevReviewMeetings) 0) }}
+{{- if and (not (eq (len $prevReviewMeetings) 0)) (or $chair $staff) }}
   <p class="notice">
     <strong>Notice:</strong>
     {{- if eq (len $prevReviewMeetings) 1 }}
