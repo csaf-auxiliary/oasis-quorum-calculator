@@ -187,3 +187,31 @@ Exptected interim result: `florence` is not listed anymore.
 - Click on the first meeting
 
 Result: `florence` is listed in the list of attendees.
+
+### 5. Hint about meetings in review
+
+#### 5.1 Hint about single meeting in review
+
+File: `5.1-one-meeting-in-review.sqlite`
+
+Steps:
+
+- Sign in as `florence`
+- Click on "chair" in the header
+- Click on "Waiting"
+
+Expected result: A message at the top explains that there is one meeting
+still in review. There is also a link to this meeting.
+
+#### 5.2 Hint about two meetings in review
+
+File: `5.2-two-meetings-in-review.sqlite`
+
+Steps:
+
+- Sign in as `florence`
+- Click on "chair" in the header
+- Click on "Waiting"
+
+Expected result: A message at the top explains that there are two meetings
+still in review. There are also links to this meetings.
