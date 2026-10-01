@@ -217,3 +217,9 @@ Steps:
 
 Expected result: A message at the top explains that there are two meetings
 still in review. There are also links to this meetings.
+
+#### 5.3 No hint about meetings in review for normal users
+
+Same file as in 5.1 or 5.2 and same steps but with user `mason`.
+
+Expected result: **No** message about meeting in review is displayed at the top.
