@@ -95,7 +95,11 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 <br>
 <strong>Status</strong>:
 {{ if or $chair $secretary $staff }}
-{{ if $concluded }}Concluded{{ else }}
+{{ if $concluded }}
+  Concluded
+{{ else if $inreview }}
+  In review
+{{ else }}
 {{- if $onhold }}[Waiting]
 {{- else }}[<a href="/meeting_status_store?SESSIONID={{ $sessionID }}&meeting={{ $meetingID }}&committee={{ $committeeID }}&status=onhold">Pause</a>]
 {{- end }}
