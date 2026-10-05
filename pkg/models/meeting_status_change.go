@@ -25,7 +25,8 @@ var (
 	ErrAlreadyRunning = errors.New("already running")
 	// ErrNewerConcluded is returned if there is a newer meeting
 	// that is already concluded.
-	ErrNewerConcluded = errors.New("newer concluded")
+	ErrNewerConcluded   = errors.New("newer concluded")
+	ErrAlreadyConcluded = errors.New("already in review or concluded")
 )
 
 // ChangeMeetingStatusPrecondition checks if all required conditions for a status are fulfilled.
@@ -36,8 +37,16 @@ func ChangeMeetingStatusPrecondition(
 	committeeID int64,
 	meetingID int64,
 ) error {
+	meeting, err := LoadMeetingTx(ctx, tx, meetingID, committeeID)
+	if err != nil {
+		return err
+	}
 	switch meetingStatus {
 	case MeetingRunning:
+		// Do not allow to start a meeting again which is already in review or completely concluded.
+		if meeting.Status == MeetingInReview || meeting.Status == MeetingConcluded {
+			return ErrAlreadyConcluded
+		}
 		// We should not start a meeting if one is already running.
 		switch has, err := HasCommitteeRunningMeetingTx(ctx, tx, committeeID); {
 		case err != nil:
