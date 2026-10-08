@@ -1,0 +1,60 @@
+{{- /*
+This file is Free Software under the Apache-2.0 License
+without warranty, see README.md and LICENSE for details.
+
+SPDX-License-Identifier: Apache-2.0
+
+SPDX-FileCopyrightText: 2026 German Federal Office for Information Security (BSI) <https://www.bsi.bund.de>
+Software-Engineering: 2026 Intevation GmbH <https://intevation.de>
+*/ -}}
+
+{{ template "header" . }}
+{{- $sessionID           := .Session.ID }}
+{{- $member              := .Member }}
+{{- $committee           := .Committee }}
+{{- $history             := .History }}
+<fieldset>
+<legend>
+    Member status history of member <strong>{{ $member.Nickname }}</strong> in committee
+    <strong>{{ $committee.Name }}</strong>
+</legend>
+<table>
+    <thead>
+    <tr>
+        <th>Status</th>
+        <th>Since</th>
+        <th>Changed By</th>
+    </tr>
+    </thead>
+    <tbody>
+        {{ if $history }}
+            {{ range $history }}
+                <tr>
+                    <td>{{ .Status.Label }}</td>
+                    <td>
+                        {{ if .DecisionReason }}
+                            <a href="/meeting_status?SESSIONID={{ $sessionID}}&committee={{ $committee.ID }}&meeting={{ .DecisionReason }}">
+                                <time datetime="{{ .Since.UTC.Format "2006-01-02T15:04:05Z07:00" }}">{{ .Since.UTC.Format "2006-01-02 15:04 MST" }}</time> (Meeting)
+                            </a>
+                        {{ else }}
+                            <time datetime="{{ .Since.UTC.Format "2006-01-02T15:04:05Z07:00" }}">{{ .Since.UTC.Format "2006-01-02 15:04 MST" }}</time>
+                        {{ end }}
+                    </td>
+                    <td>
+                        {{ if .DecisionMaker }}
+                            {{ .DecisionMaker }}
+                        {{ end }}
+                    </td>
+                </tr>
+            {{ end }}
+        {{ else }}
+            <tr>
+                <td colspan="100%">
+                    <i>No changes</i>
+                </td>
+            </tr>
+        {{ end }}
+    </tbody>
+</table>
+</fieldset>
+{{ template "footer" }}
