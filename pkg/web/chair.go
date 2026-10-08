@@ -561,7 +561,9 @@ func (c *Controller) meetingStatusError(
 
 		// if the User was part of the committee at meeting start, get Status they had at the time
 		if found {
-			realStatus = userHistory.Status(meeting.StartTime)
+			// We have to consider the case where users get their status in the same minute the meeting starts.
+			startTime := meeting.StartTime.Add(time.Minute)
+			realStatus = userHistory.Status(startTime)
 		}
 
 		if realStatus != models.NoMember {
