@@ -140,6 +140,43 @@ Steps:
 Expected result: A table with two entries is shown. The latest entry contains the newest status
 "Non-Voting Member".
 
+#### 3.3 Review of first meeting finished after review of second meeting
+
+If the latest meeting was finished including the review and a previous meeting is getting reviewed after that this should have no impact on the member status of the committee members.
+
+##### 3.3.1
+
+File: `3.3-first-meeting-in-review-second-concluded.sqlite`
+
+Steps:
+
+- Sign in as `florence`
+- Click on "chair" in the header
+- Click on "Review" (first created meeting)
+- Click on "Confirm"
+- Click on "chair" in the header
+- Click on "Members overview"
+
+Result: The members should have the same statuses as in the result of 2.1.
+
+##### 3.3.2
+
+**Currently, this test does not succeed because of the problem explained in https://github.com/csaf-auxiliary/oasis-quorum-calculator/issues/71.**
+
+File: `3.3-first-meeting-in-review-second-concluded.sqlite`
+
+Steps:
+
+- Sign in as `florence`
+- Click on "chair" in the header
+- Click on "Review" (first created meeting)
+- Change status of `mason` to "Voting Member"
+- Click on "Confirm"
+- Click on "chair" in the header
+- Click on "Members overview"
+
+Result: The members should have the same statuses as in the result of 2.1.
+
 ### 4. Deactivate user
 
 #### 4.1 Deactivate a normal user
@@ -223,3 +260,26 @@ still in review. There are also links to this meetings.
 Same file as in 5.1 or 5.2 and same steps but with user `mason`.
 
 Expected result: **No** message about meeting in review is displayed at the top.
+
+### Meetings in review from member perspective
+
+File: `5.1-one-meeting-in-review.sqlite`
+
+Steps:
+
+- Sign in as `mason`
+- Click on "Review"
+
+Exptected interim result: A page is open where `mason` can see that the meeting is in status "Review" but not which status changes will be made when the result is confirmed. It is not possible to change any statuses or to confirm anything.
+
+Next steps:
+
+- Navigate to `/meeting_review?meeting=1&committee=1`
+
+Exptected interim result: A page should appear which tells that the user is unauthorized.
+
+Next steps:
+
+- Navigate to `/meeting_finish?meeting=1&committee=1`
+
+Exptected interim result: A page should appear which tells that the user is unauthorized.
