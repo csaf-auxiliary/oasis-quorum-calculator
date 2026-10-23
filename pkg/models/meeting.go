@@ -35,6 +35,8 @@ const (
 	MeetingRunning
 	// MeetingConcluded represents a finished meeting.
 	MeetingConcluded
+	// MeetingInReview represents a meeting that has to be reviewed to conclude it.
+	MeetingInReview
 )
 
 // Meeting holds the informations about a meeting.
@@ -126,6 +128,8 @@ func (m MeetingStatus) String() string {
 		return "running"
 	case MeetingConcluded:
 		return "concluded"
+	case MeetingInReview:
+		return "review"
 	default:
 		return fmt.Sprintf("unknown meeting status (%d)", m)
 	}
@@ -140,6 +144,8 @@ func ParseMeetingStatus(s string) (MeetingStatus, error) {
 		return MeetingRunning, nil
 	case "concluded":
 		return MeetingConcluded, nil
+	case "review":
+		return MeetingInReview, nil
 	default:
 		return 0, fmt.Errorf("unknown meeting status %q", s)
 	}
@@ -296,18 +302,27 @@ func LoadLastNMeetingsTx(
 	tx *sql.Tx,
 	committeeID int64,
 	limit int64,
+	maxStartTime *time.Time,
 ) (Meetings, error) {
-	const loadSQL = `SELECT id, status, gathering, start_time, stop_time, description ` +
+	loadSQL := `SELECT id, status, gathering, start_time, stop_time, description ` +
 		`FROM meetings ` +
-		`WHERE committees_id = ? ` +
-		`ORDER BY unixepoch(start_time) DESC `
-	var query string
-	if limit >= 0 {
-		query = query + " LIMIT " + strconv.FormatInt(limit, 10)
-	} else {
-		query = loadSQL
+		`WHERE committees_id = ? `
+	if maxStartTime != nil {
+		loadSQL = loadSQL + `AND start_time < ? `
 	}
-	rows, err := tx.QueryContext(ctx, query, committeeID)
+	loadSQL = loadSQL + `ORDER BY unixepoch(start_time) DESC `
+	if limit >= 0 {
+		loadSQL = loadSQL + " LIMIT " + strconv.FormatInt(limit, 10)
+	}
+	var (
+		rows *sql.Rows
+		err  error
+	)
+	if maxStartTime != nil {
+		rows, err = tx.QueryContext(ctx, loadSQL, committeeID, maxStartTime)
+	} else {
+		rows, err = tx.QueryContext(ctx, loadSQL, committeeID)
+	}
 	if err != nil {
 		return nil, fmt.Errorf("querying last n meetings failed: %w", err)
 	}
@@ -603,7 +618,7 @@ func MeetingAttendeesTx(
 	return attendees, nil
 }
 
-// PreviousMeetingTx the id of the meeting before the given meeting.
+// PreviousMeetingTx returns the id of the meeting before the given meeting.
 // Returns false as the second value if there isn't any.
 func PreviousMeetingTx(
 	ctx context.Context,
@@ -667,7 +682,7 @@ func HasConcludedMeetingNewerThanTx(
 		`WHERE m1.id = ? ` +
 		`AND m1.committees_id = m2.committees_id ` +
 		`AND m1.id <> m2.id ` +
-		`AND m2.status = 2 ` + // MeetingConcluded
+		`AND m2.status = 3 ` + // MeetingInReview
 		`AND unixepoch(m2.start_time) > unixepoch(m1.start_time))`
 	var exists bool
 	if err := tx.QueryRowContext(ctx, existsSQL, meetingID).Scan(&exists); err != nil {
@@ -703,7 +718,7 @@ func LoadMeetingsOverview(
 	}
 	defer tx.Rollback()
 
-	meetings, err := LoadLastNMeetingsTx(ctx, tx, committeeID, limit)
+	meetings, err := LoadLastNMeetingsTx(ctx, tx, committeeID, limit, nil)
 	if err != nil {
 		return nil, err
 	}

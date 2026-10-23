@@ -20,6 +20,7 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
   <link rel="stylesheet" href="/static/styles/styles.css">
   <link rel="stylesheet" href="/static/styles/simple.min.css">
   <link rel="stylesheet" href="/static/styles/openmoji.css">
+  <script src="/static/js/htmx.min.js"></script>
   <title>OQC - OASIS Quorum Calculator</title>
 </head>
 <body>
@@ -179,9 +180,9 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
              {{ if or (not $isMember) (eq $ms.Status $statusNoMember) }}checked{{ end }}>
     </td>
     {{ else }}
-    <td><input name="role{{ .ID }}" type="checkbox" value="staff{{ .ID }}"></td>
-    <td><input name="role{{ .ID }}" type="checkbox" value="secretary{{ .ID }}"></td>
-    <td><input name="role{{ .ID }}" type="checkbox" value="chair{{ .ID }}"></td>
+    <td><input name="role{{ .ID }}" type="checkbox" value="staff"></td>
+    <td><input name="role{{ .ID }}" type="checkbox" value="secretary"></td>
+    <td><input name="role{{ .ID }}" type="checkbox" value="chair"></td>
     <td>
       <input type="radio" name="status{{ .ID }}" value="voting">
     </td>

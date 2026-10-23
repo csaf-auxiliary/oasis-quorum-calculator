@@ -15,6 +15,7 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{- $attended  := .Attended }}
 {{- $meetingOnHold    := MeetingStatus "onhold" }}
 {{- $meetingRunning   := MeetingStatus "running" }}
+{{- $meetingConcluded   := MeetingStatus "concluded" }}
 {{- $allRunningFilter := RunningFilter.And (MeetingCommitteeIDsFilter ($user.CommitteesWithRole $member)) }}
 {{- $runningExist     := $meetings.Contains $allRunningFilter }}
 {{ if $runningExist }}
@@ -84,7 +85,9 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
         <a href="/meeting_status?SESSIONID={{ $sessionID }}&meeting={{ .ID }}&committee={{ $committeeID }}">
           {{- if      eq .Status $meetingOnHold }}Waiting{{ if $att }} (Attending){{ end }}
           {{- else if eq .Status $meetingRunning }}<strong>Running</strong>
-          {{- else }}Concluded{{ if $att }} (Attended){{ end }}{{ end -}}
+          {{- else if eq .Status $meetingConcluded}}Concluded{{ if $att }} (Attended){{ end }}
+          {{- else}}Review{{ if $att }} (Attended){{ end }}
+          {{ end -}}
         </a>
         {{- if eq .Status $meetingRunning }}
           {{ if $att }}<a href="/member_attend?SESSIONID={{ $sessionID }}&meeting={{ .ID }}&committee={{ $committeeID }}&attend=false"><mark>Click&nbsp;to&nbsp;unregister&nbsp;my&nbsp;attendance!</mark></a>

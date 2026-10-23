@@ -17,7 +17,8 @@ CREATE TABLE users (
     password  VARCHAR NOT NULL,
     firstname VARCHAR,
     lastname  VARCHAR,
-    is_admin  BOOLEAN NOT NULL DEFAULT FALSE
+    is_admin  BOOLEAN NOT NULL DEFAULT FALSE,
+    active    BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 CREATE TABLE sessions (
@@ -57,10 +58,13 @@ INSERT INTO member_status (id, name, description) VALUES
     (3, 'nomember', 'Not a member');
 
 CREATE TABLE member_history (
-    nickname      VARCHAR   NOT NULL,
-    committees_id INTEGER   NOT NULL REFERENCES committees(id) ON DELETE CASCADE,
-    status        INTEGER   NOT NULL DEFAULT 0 REFERENCES member_status(id) ON DELETE CASCADE,
-    since         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    nickname        VARCHAR   NOT NULL,
+    committees_id   INTEGER   NOT NULL REFERENCES committees(id) ON DELETE CASCADE,
+    status          INTEGER   NOT NULL DEFAULT 0 REFERENCES member_status(id) ON DELETE CASCADE,
+    since           TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    pending         BOOLEAN   NOT NULL DEFAULT TRUE,
+    decision_reason INTEGER   REFERENCES meetings(id),
+    decision_maker  VARCHAR   REFERENCES users(nickname),
     UNIQUE(nickname, committees_id, since)
 );
 
@@ -80,7 +84,8 @@ CREATE TABLE meeting_status (
 INSERT INTO meeting_status (id, name, description) VALUES
     (0, 'onhold',  'Waiting to get started or paused'),
     (1, 'running', 'In progress'),
-    (2, 'concluded', 'Finalized');
+    (2, 'concluded', 'Finalized'),
+    (3, 'review', 'Changes have to be reviewed');
 
 CREATE TABLE meetings (
     id            INTEGER PRIMARY KEY AUTOINCREMENT,

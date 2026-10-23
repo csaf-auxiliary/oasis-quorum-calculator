@@ -93,3 +93,8 @@ func Join2[K, V any](seqs ...iter.Seq2[K, V]) iter.Seq2[K, V] {
 		}
 	}
 }
+
+// Pair returns a sequence of one item of the given value pair a and b.
+func Pair[A, B any](a A, b B) iter.Seq2[A, B] {
+	return func(yield func(A, B) bool) { yield(a, b) }
+}

@@ -14,9 +14,9 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{- $chair          := $membership.HasRole (Role "chair") }}
 {{- $secretary      := $membership.HasRole (Role "secretary") }}
 {{- $staff          := $membership.HasRole (Role "staff") }}
+{{- $data := .Overview.Data }}
 <fieldset>
 <legend>Meetings: <strong>{{ .Committee.Name }}</strong></legend>
-{{- $data := .Overview.Data }}
 {{ if $data }}
 {{- $histories := .Overview.UsersHistories  }}
 {{- $users     := .Overview.Users           }}
@@ -24,6 +24,7 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{- $waiting   := MeetingStatus "onhold"    }}
 {{- $running   := MeetingStatus "running"   }}
 {{- $concluded := MeetingStatus "concluded" }}
+{{- $review  := MeetingStatus "review" }}
   <table>
     <thead>
     </thead>
@@ -38,6 +39,7 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
   <br>
   {{-      if eq $m.Status $waiting -}}Waiting
   {{- else if eq $m.Status $running -}}Running
+  {{- else if eq $m.Status $review -}}Review
   {{- else }}Concluded
   {{- end -}}
 </th>
@@ -52,7 +54,7 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
     {{- if $user.Firstname }}{{ $user.Firstname }}{{ end }}
     {{  if $user.Lastname  }}{{ $user.Lastname  }}{{ end }}
     {{- if or $user.Firstname $user.Lastname }}<br>{{ end }}
-    (<strong>{{ $nickname }}</strong>)
+    (<strong><a href="/committee_member_details?SESSIONID={{ $sessionID }}&committee={{ $committeeID }}&nickname={{ $nickname }}">{{ $nickname }}</a></strong>)
   </td>
 {{- range $d := $data }}
 {{- $m         := $d.Meeting   }}
@@ -95,5 +97,60 @@ Software-Engineering: 2025 Intevation GmbH <https://intevation.de>
 {{ $exporter := or $chair $secretary $staff }}
 {{ if $exporter }}
   <a href="/meetings_export?SESSIONID={{ $sessionID }}&committee={{ $committeeID }}">Export as CSV</a>
+{{ end }}
+
+<br>
+<br>
+
+{{ if $data }}
+  {{- $histories := .Overview.UsersHistories  }}
+  {{- $users     := .Overview.Users           }}
+  <fieldset>
+    <legend>Member status changes</legend>
+    {{ if $histories }}
+      <table>
+        <thead>
+          <tr>
+            <th>Login</th>
+            <th>New status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{ range $data }}
+            {{- $meetingID := .Meeting.ID }}
+            {{ if $meetingID }}
+              <tr>
+                <td colspan="100%">
+                  <a href="/meeting_status?SESSIONID={{ $sessionID}}&committee={{ $committeeID }}&meeting={{ $meetingID }}"><time datetime="{{ .Meeting.StartTime.UTC.Format "2006-01-02T15:04:05Z07:00" }}">{{ .Meeting.StartTime.UTC.Format "2006-01-02 15:04 MST" }}</time></a>
+                </td>
+              <tr>
+              {{- $entryLength := len ($histories.GetEntriesWithMeetingID $users $meetingID) }}
+              {{ if gt $entryLength 0 }}
+                {{ range $users }}
+                  {{- $nickname := .Nickname }}
+                  {{- $history := index $histories $nickname }}
+                    {{ range $history }}
+                      {{- $status := .Status }}
+                      {{ if eq $meetingID .GetDecisionReason }}
+                        <tr>
+                          <td>{{ $nickname }}</td>
+                          <td>{{ $status.Label }}</td>
+                        </tr>
+                      {{ end }}
+                    {{ end }}
+                {{ end }}
+              {{ else }}
+                <td colspan="100%">
+                  <i>No changes</i>
+                </td>
+              {{ end }}
+            {{ end }}
+          {{ end }}
+        </tbody>
+      </table>
+    {{ else }}
+      <i>No changes</i>
+    {{ end }}
+  </fieldset>
 {{ end }}
 {{ template "footer" }}

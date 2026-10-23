@@ -223,7 +223,7 @@ func run(committee, csv, databaseURL string) error {
 
 	// Load and check if the username is correct and try to guess the username
 	// based on firstname and lastname if the specified name does not exist
-	users, err := models.LoadAllUsers(ctx, db)
+	users, err := models.LoadAllUsers(ctx, db, true)
 	if err != nil {
 		return fmt.Errorf("loading users failed: %w", err)
 	}
@@ -266,7 +266,14 @@ func run(committee, csv, databaseURL string) error {
 			Status:    user.initialStatus,
 			Roles:     []models.Role{user.initialRole},
 		}
-		if err := models.UpdateMemberships(ctx, db, user.name, misc.Values(ms)); err != nil {
+		if err := models.UpdateMemberships(
+			ctx,
+			db,
+			user.name,
+			misc.Values(ms),
+			nil,
+			nil,
+		); err != nil {
 			return err
 		}
 	}
@@ -290,7 +297,16 @@ func run(committee, csv, databaseURL string) error {
 			return err
 		}
 
-		if err = models.ChangeMeetingStatus(ctx, db, meeting.ID, committeeModel.ID, models.MeetingConcluded, meeting.StopTime); err != nil {
+		if err = models.UpdateMeetingStatus(
+			ctx,
+			db,
+			meeting.ID,
+			committeeModel.ID,
+			models.MeetingConcluded,
+			models.ApplyUpDowngrades,
+			meeting.StopTime,
+			nil,
+		); err != nil {
 			return err
 		}
 	}

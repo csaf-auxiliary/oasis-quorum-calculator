@@ -1,0 +1,242 @@
+{{- /*
+This file is Free Software under the Apache-2.0 License
+without warranty, see README.md and LICENSE for details.
+
+SPDX-License-Identifier: Apache-2.0
+
+SPDX-FileCopyrightText: 2026 German Federal Office for Information Security (BSI) <https://www.bsi.bund.de>
+Software-Engineering: 2026 Intevation GmbH <https://intevation.de>
+*/ -}}
+{{- define "header" -}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  {{- $running   := eq .Meeting.Status (MeetingStatus "running") }}
+  {{- if $running }}
+    <meta http-equiv="Refresh" content="300">
+  {{- end }}
+  <link rel="stylesheet" href="/static/styles/styles.css">
+  <link rel="stylesheet" href="/static/styles/simple.min.css">
+  <link rel="stylesheet" href="/static/styles/openmoji.css">
+  <title>OQC - OASIS Quorum Calculator</title>
+  <script>
+    window.addEventListener("load", () => {
+      Array.from(document.getElementsByClassName("onlyJavaScript")).forEach((element) => {
+        element.classList.remove("onlyJavaScript")
+      })
+    })
+  </script>
+  <script src="/static/js/htmx.min.js"></script>
+</head>
+<body>
+  <header>
+    {{ if .Session }}
+    <nav>
+      {{ if .User }}
+        {{ $staff := .User.CountMemberships (Role "staff") }}
+        {{ if or .User.IsAdmin }}
+          <a href="/admin" class="onlyJavaScript">admin <span class="emojiom">&#x1F511;</span></a>
+        {{ end }}
+        {{ if or .User.IsAdmin $staff }}
+          <a href="/users?SESSIONID={{ .Session.ID }}">users <span class="emojiom">&#x1F465;</span></a>
+        {{ end }}
+        {{ if or .User.IsAdmin }}
+          <a href="/committees?SESSIONID={{ .Session.ID }}">committees <span class="emojiom">&#x1F3DB;</span></a>
+        {{ end }}
+        {{ $chair  := .User.CountMemberships (Role "chair") (Role "secretary") (Role "staff") }}
+        {{ $member := .User.CountMemberships (Role "member") }}
+        {{ if $chair }}
+          <a href="/chair?SESSIONID={{ .Session.ID }}">chair <span class="emojiom">&#x1F9FE;</span> ({{ $chair }})</a>
+        {{ end }}
+        {{ if $member }}
+          <a href="/member?SESSIONID={{ .Session.ID }}">member <span class="emojiom">&#x1F465;</span> ({{ $member }})</a>
+        {{ end }}
+        <a href="/user?SESSIONID={{ .Session.ID }}">me <span class="emojiom">&#x1F464;</span> (<strong>{{ .User.Nickname }}</strong>)</a>
+      {{ end }}
+      <a href="/logout?SESSIONID={{ .Session.ID }}">Logout <span class="emojiom">🚪</span></a>
+    </nav>
+    {{ end }}
+    <h4>OQC - OASIS Quorum Calculator</h4>
+  </header>
+  <main>
+{{ end -}}
+{{- define "footer" }}
+  </main>
+  <footer>
+    <p> <a
+      href="https://github.com/csaf-auxiliary/oasis-quorum-calculator">OQC</a>
+      v{{ SemVersion }}
+      {{ template "notices" }}
+    </p>
+  </footer>
+</body>
+</html>
+{{- end -}}
+
+{{ define "error" -}}
+{{ if .Error -}}
+<p class="notice"><strong>Error:</strong> {{ .Error }}</p>
+{{ end }}
+{{- end -}}
+
+{{ define "committees_table_header" -}}
+<thead>
+<th>Committee</th>
+<th>Staff</th>
+<th>Secretary</th>
+<th>Chair</th>
+<th>Member</th>
+<th> Voting<br>Member </th>
+<th> Non-Voting<br>Member </th>
+<th> Persistent<br>Non-Voting<br>Member </th>
+</thead>
+{{- end -}}
+
+{{ define "committees" -}}
+{{ if .Memberships }}
+{{ $member := Role "member" }}
+{{ $chair  := Role "chair" }}
+{{ $secretary  := Role "secretary" }}
+{{ $staff  := Role "staff" }}
+{{ $statusVoting     := MemberStatus "voting" }}
+{{ $statusMember     := MemberStatus "member" }}
+{{ $statusNoneVoting := MemberStatus "nonevoting" }}
+<table>
+  {{ template "committees_table_header" }}
+  <tbody>
+  {{ range .Memberships }}
+  <tr>
+    <td>{{ .Committee.Name }}</td>
+    <td>{{ if .HasRole $staff       }}&check;{{ end }}</td>
+    <td>{{ if .HasRole $secretary   }}&check;{{ end }}</td>
+    <td>{{ if .HasRole $chair       }}&check;{{ end }}</td>
+    <td>{{ if .HasRole $member      }}&check;{{ end }}</td>
+    <td>{{ if and (.HasRole $member) (eq .Status $statusVoting) }}&check;{{ end }}</td>
+    <td>{{ if and (.HasRole $member) (eq .Status $statusMember) }}&check;{{ end }}</td>
+    <td>{{ if and (.HasRole $member) (eq .Status $statusNoneVoting) }}&check;{{ end }}</td>
+  <tr>
+  {{ end }}
+  </tbody>
+</table>
+{{ end }}
+{{- end -}}
+
+{{ define "user_committees" -}}
+{{ $user := .User }}
+{{ $committees := .Committees }}
+{{ if $committees }}
+{{ $member := Role "member" }}
+{{ $chair  := Role "chair" }}
+{{ $secretary  := Role "secretary" }}
+{{ $staff  := Role "staff" }}
+{{ $statusVoting     := MemberStatus "voting" }}
+{{ $statusMember     := MemberStatus "member" }}
+{{ $statusNoneVoting := MemberStatus "nonevoting" }}
+<table>
+  {{ template "committees_table_header" }}
+  <tbody>
+  {{ range $committees }}
+  <tr>
+    <td>{{ .Name }}</td>
+    {{ $ms := $user.FindMembership .Name }}
+    {{ $isChair     := $ms.HasRole $chair }}
+    {{ $isMember    := $ms.HasRole $member }}
+    {{ $isSecretary := $ms.HasRole $secretary }}
+    {{ $isStaff := $ms.HasRole $staff }}
+    {{ if $ms }}
+    <td>
+      <input type="checkbox"
+             name="role_committee"
+             value="staff{{ .ID }}"
+             {{ if $isStaff }}checked{{ end }}>
+    </td>
+    <td>
+      <input type="checkbox"
+             name="role_committee"
+             value="secretary{{ .ID }}"
+             {{ if $isSecretary }}checked{{ end }}>
+    </td>
+    <td>
+      <input type="checkbox"
+             name="role_committee"
+             value="chair{{ .ID }}"
+             {{ if $isChair }}checked{{ end }}>
+    </td>
+    <td>
+      <input type="checkbox"
+             name="role_committee"
+             value="member{{ .ID }}"
+             {{ if $isMember }}checked{{ end }}>
+    </td>
+    <td>
+      <input type="radio"
+             name="status{{ .ID }}"
+             value="voting"
+             {{ if and $isMember (eq $ms.Status $statusVoting) }}checked{{ end }}>
+    </td>
+    <td>
+      <input type="radio"
+             name="status{{ .ID }}"
+             value="member"
+             {{ if and $isMember (eq $ms.Status $statusMember) }}checked{{ end }}>
+    </td>
+    <td>
+      <input type="radio"
+             name="status{{ .ID }}"
+             value="nonevoting"
+             {{ if and $isMember (eq $ms.Status $statusNoneVoting) }}checked{{ end }}>
+    </td>
+    {{ else }}
+    <td><input name="role_committee" type="checkbox" value="staff{{ .ID }}"></td>
+    <td><input name="role_committee" type="checkbox" value="secretary{{ .ID }}"></td>
+    <td><input name="role_committee" type="checkbox" value="chair{{ .ID }}"></td>
+    <td><input name="role_committee" type="checkbox" value="member{{ .ID }}"></td>
+    <td>
+      <input type="radio" name="status{{ .ID }}" value="voting">
+    </td>
+    <td>
+      <input type="radio" name="status{{ .ID }}" value="member">
+    </td>
+    <td>
+      <input type="radio" name="status{{ .ID }}" value="nonevoting">
+    </td>
+    {{ end }}
+  <tr>
+  {{ end }}
+  </tbody>
+</table>
+{{ end }}
+{{- end -}}
+
+{{- define "meeting" -}}
+{{ $concluded := eq .Status (MeetingStatus "concluded") }}
+<label for="start_time">Start time:</label>
+<input type="datetime-local"
+       name="start_time"
+       id="start_time"
+       value="{{ if not .StartTime.IsZero }}{{ .StartTime.UTC.Format "2006-01-02T15:04" }}{{ end }}"
+       {{ if $concluded }}disabled{{ end }}
+       required>
+<input type="text" name="timezone" value="UTC" {{ if $concluded }}disabled{{ end }}>
+<br>
+<label for="duration">Duration:</label>
+<input type="input"
+       name="duration"
+       id="duration"
+       value="{{ if .Duration }}{{ HoursMinutes .Duration }}{{ end }}"
+       {{ if $concluded }}disabled{{ end }}
+       required><br>
+<label for="checkbox">Gathering:</label>
+<input type="checkbox"
+       name="gathering"
+       id="gathering"
+       value="gathering"
+       {{ if .Gathering }}checked{{ end }}
+       {{ if $concluded }}disabled{{ end }}>
+<br>
+<label for="description">Description:</label>
+<textarea name="description"
+       {{ if $concluded }}disabled{{ end }}>{{ if .Description }}{{ .Description }}{{ end }}</textarea>
+{{- end -}}

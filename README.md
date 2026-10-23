@@ -12,7 +12,7 @@
 
 :warning: **This is work in progress!**
 
-A simple tool to calculate the quorum for OASIS TCs (definitely JavaScript-free)
+A simple tool to calculate the quorum for OASIS TCs
 
 
 See [how to build](./docs/build.md).

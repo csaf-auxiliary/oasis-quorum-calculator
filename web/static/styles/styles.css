@@ -6,4 +6,15 @@
     background-color: #ff0f0f; /* red */
 }
 
+.editable-member-status {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: 16px;
+}
 
+.editable-member-status .action {
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+}
