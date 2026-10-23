@@ -239,8 +239,18 @@ Steps:
 - Click on "chair" in the header
 - Click on "Waiting"
 
-Expected result: A message at the top explains that there is one meeting
+Expected interim result: A message at the top explains that there is one meeting
 still in review. There is also a link to this meeting.
+
+Next steps:
+
+- Click on "Conclude"
+
+Expected interim result: The message should not be visible anymore.
+
+- Click on "Confirm"
+
+Expected result: The message should still not be visible.
 
 #### 5.2 Hint about two meetings in review
 
