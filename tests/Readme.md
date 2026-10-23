@@ -271,7 +271,7 @@ Same file as in 5.1 or 5.2 and same steps but with user `mason`.
 
 Expected result: **No** message about meeting in review is displayed at the top.
 
-### Meetings in review from member perspective
+### 6. Meetings in review from member perspective
 
 File: `5.1-one-meeting-in-review.sqlite`
 
